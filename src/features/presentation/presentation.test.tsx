@@ -102,6 +102,57 @@ describe("usePresentationMode", () => {
 
     expect(result.current.state.isFullscreen).toBe(false);
   });
+
+  it("advances with Space like ArrowRight and PageDown", () => {
+    const { result } = renderHook(() =>
+      usePresentationMode({ slideCount: 3, initialSlideIndex: 0 }),
+    );
+
+    act(() => {
+      result.current.enter();
+    });
+
+    const spaceEvent = new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+    act(() => {
+      result.current.handleKeyDown(spaceEvent);
+    });
+
+    expect(spaceEvent.defaultPrevented).toBe(true);
+    expect(result.current.state.currentSlideIndex).toBe(1);
+
+    act(() => {
+      result.current.handleKeyDown(new KeyboardEvent("keydown", { key: " ", cancelable: true }));
+    });
+    expect(result.current.state.currentSlideIndex).toBe(2);
+
+    act(() => {
+      result.current.handleKeyDown(new KeyboardEvent("keydown", { key: "PageDown", cancelable: true }));
+    });
+    expect(result.current.state.currentSlideIndex).toBe(2);
+  });
+
+  it("ignores Space while typing in input", () => {
+    const { result } = renderHook(() =>
+      usePresentationMode({ slideCount: 3, initialSlideIndex: 0 }),
+    );
+
+    act(() => {
+      result.current.enter();
+    });
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    const event = new KeyboardEvent("keydown", { key: " ", code: "Space", cancelable: true });
+    Object.defineProperty(event, "target", { value: input });
+
+    act(() => {
+      result.current.handleKeyDown(event);
+    });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(result.current.state.currentSlideIndex).toBe(0);
+    input.remove();
+  });
 });
 
 describe("tryEnterFullscreen", () => {

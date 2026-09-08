@@ -136,6 +136,7 @@ export function usePresentationMode(
         case "ArrowRight":
         case "ArrowDown":
         case "PageDown":
+        case " ":
           event.preventDefault();
           next();
           break;
