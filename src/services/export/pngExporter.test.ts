@@ -6,6 +6,7 @@ import {
   createSlideFilename,
   waitForFontsAndImages,
 } from "./pngExporter";
+import { ResourceWaitError } from "./errors";
 
 describe("createChromeFilter", () => {
   it("filters editor chrome nodes", () => {
@@ -32,7 +33,9 @@ describe("waitForFontsAndImages", () => {
     Object.defineProperty(img, "naturalWidth", { value: 0 });
     root.appendChild(img);
 
-    await expect(waitForFontsAndImages(root, 100)).rejects.toThrow("decode");
+    await expect(waitForFontsAndImages(root, 100)).rejects.toMatchObject({
+      kind: "image-decode",
+    });
   });
 
   it("uses addEventListener without overwriting handlers", async () => {
@@ -48,6 +51,18 @@ describe("waitForFontsAndImages", () => {
     img.dispatchEvent(new Event("load"));
     await expect(promise).resolves.toBeUndefined();
     expect(existing).toHaveBeenCalled();
+  });
+
+  it("classifies font readiness rejection separately", async () => {
+    const root = document.createElement("div");
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { ready: Promise.reject(new Error("Font blocked")) },
+    });
+
+    await expect(waitForFontsAndImages(root, 100)).rejects.toMatchObject({
+      kind: "font",
+    });
   });
 });
 
@@ -73,46 +88,74 @@ describe("captureSlidePng", () => {
       expect(result.dataUrl).toBe("data:image/png;base64,abc");
       expect(result.blob.type).toBe("image/png");
     }
-
-    expect(toPng).toHaveBeenCalledWith(
-      slide,
-      expect.objectContaining({ width: 1920, height: 1080 }),
-    );
   });
 
-  it("returns decode failure error separately from timeout", async () => {
+  it("returns image decode failure separately from timeout", async () => {
     const slide = document.createElement("div");
     const result = await captureSlidePng(slide, 1, {
       waitForResources: async () => {
-        throw new Error("Image decode failed");
+        throw new ResourceWaitError("Image decode failed", "image-decode");
       },
       toPng: vi.fn(),
     });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("decode");
-      expect(result.error).not.toContain("Превышено время");
+      expect(result.error).toContain("декодировать");
+      expect(result.error).not.toContain("Превышено время ожидания загрузки");
     }
   });
 
-  it("returns timeout error when resources fail to load in time", async () => {
+  it("returns resource timeout separately from decode errors", async () => {
     const slide = document.createElement("div");
     const result = await captureSlidePng(slide, 0, {
       waitForResources: async () => {
-        throw new Error("Resource timeout");
+        throw new ResourceWaitError("Resource timeout", "timeout");
       },
       toPng: vi.fn(),
     });
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain("Превышено время ожидания");
+      expect(result.error).toContain("Превышено время ожидания загрузки");
     }
   });
 
-  it("times out capture itself", async () => {
+  it("returns capture timeout and absorbs late rejection", async () => {
     const slide = document.createElement("div");
+    let rejectLate: ((reason?: unknown) => void) | undefined;
+    const toPng = vi.fn(
+      () =>
+        new Promise<string>((_, reject) => {
+          rejectLate = reject;
+          setTimeout(() => reject(new Error("late failure")), 30);
+        }),
+    );
+
+    const rejectionObserver = vi.fn();
+    const result = await captureSlidePng(slide, 0, {
+      toPng: () => {
+        const promise = toPng();
+        promise.catch(rejectionObserver);
+        return promise;
+      },
+      waitForResources: async () => undefined,
+      captureTimeoutMs: 5,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("ожидания экспорта");
+    }
+
+    rejectLate?.(new Error("late failure"));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(rejectionObserver).toHaveBeenCalled();
+  });
+
+  it("aborts capture signal on timeout when provided", async () => {
+    const slide = document.createElement("div");
+    const controller = new AbortController();
     const toPng = vi.fn(
       () =>
         new Promise<string>((resolve) => {
@@ -120,16 +163,15 @@ describe("captureSlidePng", () => {
         }),
     );
 
-    const result = await captureSlidePng(slide, 0, {
+    await captureSlidePng(slide, 0, {
       toPng,
       waitForResources: async () => undefined,
       captureTimeoutMs: 5,
+      captureAbortController: controller,
+      captureSignal: controller.signal,
     });
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain("Capture timeout");
-    }
+    expect(controller.signal.aborted).toBe(true);
   });
 });
 

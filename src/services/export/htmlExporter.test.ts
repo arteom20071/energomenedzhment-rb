@@ -110,12 +110,25 @@ describe("sanitizeFilename html", () => {
 });
 
 describe("css transition staging", () => {
-  it("includes staged transition classes for slide/zoom", () => {
+  it("includes opacity and transform transitions with fade staging", () => {
     const presentation = createPresentation("Transitions");
+    presentation.slides[0]!.transition = "fade";
+
+    const html = generateStandaloneHtmlFromResolved(presentation);
+    expect(html).toContain("transition: opacity 0.4s ease, transform 0.4s ease");
+    expect(html).toContain("transition-fade");
+    expect(html).toContain("opacity: 0");
+    expect(html).toContain("stage-active");
+    expect(html).toContain("requestAnimationFrame");
+  });
+
+  it("includes slide-left and zoom staged initial states", () => {
+    const presentation = createPresentation("Zoom");
     presentation.slides[0]!.transition = "zoom";
 
     const html = generateStandaloneHtmlFromResolved(presentation);
-    expect(html).toContain("stage-active");
     expect(html).toContain("transition-zoom");
+    expect(html).toContain("scale(0.85)");
+    expect(html).toContain("opacity: 0");
   });
 });

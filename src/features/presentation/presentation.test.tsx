@@ -155,7 +155,7 @@ describe("PresentationMode", () => {
     });
 
     const presentation = createPresentation("Stage");
-    presentation.slides[0]!.transition = "slide";
+    presentation.slides[0]!.transition = "fade";
 
     const { rerender } = render(
       <PresentationMode
@@ -167,7 +167,7 @@ describe("PresentationMode", () => {
       />,
     );
 
-    presentation.slides.push({ ...presentation.slides[0]!, id: "slide-2" });
+    presentation.slides.push({ ...presentation.slides[0]!, id: "slide-2", transition: "slide" });
     rerender(
       <PresentationMode
         presentation={presentation}
@@ -178,7 +178,25 @@ describe("PresentationMode", () => {
       />,
     );
 
-    expect(document.querySelector(".presentation-slide.stage-enter")).toBeTruthy();
+    expect(document.querySelector(".presentation-slide.stage-enter.transition-slide")).toBeTruthy();
     expect(window.requestAnimationFrame).toHaveBeenCalled();
+  });
+
+  it("includes fade opacity staging styles", () => {
+    const presentation = createPresentation("Fade");
+    presentation.slides[0]!.transition = "fade";
+
+    render(
+      <PresentationMode
+        presentation={presentation}
+        currentSlideIndex={0}
+        onExit={() => undefined}
+        requestFullscreen={async () => undefined}
+        exitFullscreen={async () => undefined}
+      />,
+    );
+
+    expect(document.querySelector("style")?.textContent).toContain("transition-fade");
+    expect(document.querySelector("style")?.textContent).toContain("opacity: 0");
   });
 });

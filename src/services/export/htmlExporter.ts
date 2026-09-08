@@ -2,9 +2,10 @@ import type { Presentation, Slide, SlideElement } from "../../domain/presentatio
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../domain/presentation";
 import { parsePresentation } from "../../domain/presentation";
 import {
+  buildStyleAttribute,
   serializeBorder,
   serializeColor,
-  serializeFontFamily,
+  serializeFontFamilyForCss,
   serializeFontWeight,
   serializeLineHeight,
   serializeObjectFit,
@@ -38,25 +39,53 @@ function renderElementShell(
   element: SlideElement,
   innerHtml: string,
 ): string {
-  return `<div class="element-outer ${element.type}" data-animation="${element.animation ?? ""}" style="left:${serializePosition(element.x)};top:${serializePosition(element.y)};width:${serializePosition(element.width)};height:${serializePosition(element.height)};transform:rotate(${serializeRotation(element.rotation)});z-index:${serializeZIndex(element.zIndex)};"><div class="element-inner">${innerHtml}</div></div>`;
+  const style = buildStyleAttribute({
+    left: serializePosition(element.x),
+    top: serializePosition(element.y),
+    width: serializePosition(element.width),
+    height: serializePosition(element.height),
+    transform: `rotate(${serializeRotation(element.rotation)})`,
+    "z-index": serializeZIndex(element.zIndex),
+  });
+  return `<div class="element-outer ${element.type}" data-animation="${element.animation ?? ""}" style="${style}"><div class="element-inner">${innerHtml}</div></div>`;
 }
 
 function renderTextElement(element: SlideElement): string {
   const styles = element.styles as Record<string, unknown>;
-  const inner = `<div class="text-content" style="font-size:${serializePxNumber(styles.fontSize, 32)};color:${serializeColor(styles.color, "#111827")};font-family:${serializeFontFamily(styles.fontFamily, "Inter, sans-serif")};font-weight:${serializeFontWeight(styles.fontWeight, "normal")};text-align:${serializeTextAlign(styles.textAlign, "left")};line-height:${serializeLineHeight(styles.lineHeight, 1.2)};">${escapeHtml(serializePlainText(element.content))}</div>`;
+  const innerStyle = buildStyleAttribute({
+    "font-size": serializePxNumber(styles.fontSize, 32),
+    color: serializeColor(styles.color, "#111827"),
+    "font-family": serializeFontFamilyForCss(styles.fontFamily, "Inter, sans-serif"),
+    "font-weight": serializeFontWeight(styles.fontWeight, "normal"),
+    "text-align": serializeTextAlign(styles.textAlign, "left"),
+    "line-height": serializeLineHeight(styles.lineHeight, 1.2),
+  });
+  const inner = `<div class="text-content" style="${innerStyle}">${escapeHtml(serializePlainText(element.content))}</div>`;
   return renderElementShell(element, inner);
 }
 
 function renderImageElement(element: SlideElement): string {
   const styles = element.styles as Record<string, unknown>;
   const src = serializePlainText(element.content);
-  const inner = `<img src="${escapeHtml(src)}" alt="${escapeHtml(serializePlainText(styles.alt))}" style="width:100%;height:100%;object-fit:${serializeObjectFit(styles.objectFit, "cover")};" />`;
+  const innerStyle = buildStyleAttribute({
+    width: "100%",
+    height: "100%",
+    "object-fit": serializeObjectFit(styles.objectFit, "cover"),
+  });
+  const inner = `<img src="${escapeHtml(src)}" alt="${escapeHtml(serializePlainText(styles.alt))}" style="${innerStyle}" />`;
   return renderElementShell(element, inner);
 }
 
 function renderShapeElement(element: SlideElement): string {
   const styles = element.styles as Record<string, unknown>;
-  const inner = `<div class="shape-content" style="width:100%;height:100%;background:${serializeColor(styles.fill, "#6366f1")};border-radius:${serializePxNumber(styles.borderRadius, 0)};border:${serializeBorder(styles.border, "none")};"></div>`;
+  const innerStyle = buildStyleAttribute({
+    width: "100%",
+    height: "100%",
+    background: serializeColor(styles.fill, "#6366f1"),
+    "border-radius": serializePxNumber(styles.borderRadius, 0),
+    border: serializeBorder(styles.border, "none"),
+  });
+  const inner = `<div class="shape-content" style="${innerStyle}"></div>`;
   return renderElementShell(element, inner);
 }
 
@@ -79,7 +108,7 @@ function renderSlide(slide: Slide, index: number): string {
     .map(renderElement)
     .join("\n");
 
-  return `<section class="slide" data-index="${index}" data-transition="${slide.transition}" style="background:${serializeColor(slide.background, "#ffffff")};">${elements}</section>`;
+  return `<section class="slide" data-index="${index}" data-transition="${slide.transition}" style="${buildStyleAttribute({ background: serializeColor(slide.background, "#ffffff") })}">${elements}</section>`;
 }
 
 export function generateStandaloneHtmlFromResolved(presentation: Presentation): string {
@@ -102,12 +131,14 @@ export function generateStandaloneHtmlFromResolved(presentation: Presentation): 
     html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: Inter, sans-serif; }
     #deck { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
     .viewport { position: relative; width: ${CANVAS_WIDTH}px; height: ${CANVAS_HEIGHT}px; transform-origin: center center; }
-    .slide { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; transform: translateX(0) scale(1); }
+    .slide { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease; transform: translateX(0) scale(1); }
     .slide.active { opacity: 1; pointer-events: auto; }
-    .slide.stage-enter.transition-slide { transform: translateX(100%); }
-    .slide.stage-enter.transition-slide.stage-active { transform: translateX(0); }
-    .slide.stage-enter.transition-zoom { transform: scale(0.85); }
-    .slide.stage-enter.transition-zoom.stage-active { transform: scale(1); }
+    .slide.stage-enter.transition-fade { opacity: 0; transform: translateX(0) scale(1); }
+    .slide.stage-enter.transition-fade.stage-active { opacity: 1; transform: translateX(0) scale(1); }
+    .slide.stage-enter.transition-slide { opacity: 0; transform: translateX(100%); }
+    .slide.stage-enter.transition-slide.stage-active { opacity: 1; transform: translateX(0); }
+    .slide.stage-enter.transition-zoom { opacity: 0; transform: scale(0.85); }
+    .slide.stage-enter.transition-zoom.stage-active { opacity: 1; transform: scale(1); }
     .element-outer { position: absolute; }
     .element-inner { width: 100%; height: 100%; }
     .element-outer[data-animation="fade-up"] .element-inner { animation: fadeUp 0.6s ease both; }
@@ -151,9 +182,10 @@ export function generateStandaloneHtmlFromResolved(presentation: Presentation): 
         var slide = slides[index];
         var transition = slide.getAttribute('data-transition') || 'fade';
         slides.forEach(function (item) {
-          item.classList.remove('active', 'stage-enter', 'stage-active', 'transition-slide', 'transition-zoom');
+          item.classList.remove('active', 'stage-enter', 'stage-active', 'transition-fade', 'transition-slide', 'transition-zoom');
         });
         slide.classList.add('active', 'stage-enter');
+        if (transition === 'fade' || transition === 'none') slide.classList.add('transition-fade');
         if (transition === 'slide') slide.classList.add('transition-slide');
         if (transition === 'zoom') slide.classList.add('transition-zoom');
         requestAnimationFrame(function () {

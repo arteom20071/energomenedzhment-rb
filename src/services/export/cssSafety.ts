@@ -148,3 +148,41 @@ export function serializeZIndex(value: number): string {
   }
   return String(Math.trunc(value));
 }
+
+export function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function serializeFontFamilyForCss(value: unknown, fallback: string): string {
+  const serialized = serializeFontFamily(value, fallback);
+  return serialized
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part) => {
+      let unquoted = part;
+      if (
+        (part.startsWith('"') && part.endsWith('"')) ||
+        (part.startsWith("'") && part.endsWith("'"))
+      ) {
+        unquoted = part.slice(1, -1);
+      }
+      if (/[\s"'\\]/.test(unquoted)) {
+        return `"${unquoted.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      }
+      return unquoted;
+    })
+    .join(", ");
+}
+
+export function buildStyleAttribute(declarations: Record<string, string>): string {
+  const css = Object.entries(declarations)
+    .map(([property, value]) => `${property}:${value}`)
+    .join(";");
+  return escapeHtmlAttribute(css);
+}

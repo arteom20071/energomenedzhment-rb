@@ -9,6 +9,13 @@ describe("filenameSanitizer", () => {
     expect(sanitizeExportBasename("LPT9")).toBe("LPT9_");
   });
 
+  it("prefixes device stems even with extensions and suffixes", () => {
+    expect(sanitizeExportBasename("CON.txt")).toBe("CON.txt_");
+    expect(sanitizeExportBasename("LPT1.foo")).toBe("LPT1.foo_");
+    expect(sanitizeJsonFilename("CON.txt")).toBe("CON.txt_.presentation.json");
+    expect(sanitizeHtmlFilename("LPT1.foo")).toBe("LPT1.foo_.html");
+  });
+
   it("strips trailing dots and spaces", () => {
     expect(sanitizeExportBasename("name...")).toBe("name");
     expect(sanitizeExportBasename("title   ")).toBe("title");

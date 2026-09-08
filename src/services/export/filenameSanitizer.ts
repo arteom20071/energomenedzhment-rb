@@ -26,14 +26,20 @@ function stripControlChars(value: string): string {
     .join("");
 }
 
+function getDeviceStem(value: string): string {
+  const trimmed = value.replace(/[\s.]+$/g, "");
+  const firstSegment = trimmed.split(".")[0] ?? trimmed;
+  return firstSegment.toUpperCase();
+}
+
 function normalizeWindowsBasename(value: string): string {
   let base = value.replace(/[\s.]+$/g, "");
   if (base.length === 0) {
     base = "presentation";
   }
 
-  const upper = base.toUpperCase();
-  if (WINDOWS_RESERVED.has(upper)) {
+  const stem = getDeviceStem(base);
+  if (WINDOWS_RESERVED.has(stem)) {
     return `${base}_`;
   }
 

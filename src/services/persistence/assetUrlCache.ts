@@ -1,62 +1,67 @@
+interface UrlEntry {
+  assetId: string;
+  url: string;
+  blob: Blob;
+  refCount: number;
+}
+
 export class AssetUrlCache {
-  private readonly urls = new Map<string, string>();
-  private readonly refCounts = new Map<string, number>();
-  private readonly blobs = new Map<string, Blob>();
+  private readonly byUrl = new Map<string, UrlEntry>();
+  private readonly latestByAsset = new Map<string, string>();
 
   get(assetId: string): string | undefined {
-    return this.urls.get(assetId);
-  }
-
-  acquire(assetId: string, blob: Blob): string {
-    const existingBlob = this.blobs.get(assetId);
-    const existingUrl = this.urls.get(assetId);
-
-    if (existingUrl && existingBlob && existingBlob !== blob) {
-      URL.revokeObjectURL(existingUrl);
-      this.urls.delete(assetId);
-      this.refCounts.delete(assetId);
-      this.blobs.delete(assetId);
-    }
-
-    if (existingUrl && existingBlob === blob) {
-      this.refCounts.set(assetId, (this.refCounts.get(assetId) ?? 0) + 1);
-      return existingUrl;
-    }
-
-    const url = URL.createObjectURL(blob);
-    this.urls.set(assetId, url);
-    this.blobs.set(assetId, blob);
-    this.refCounts.set(assetId, 1);
+    const url = this.latestByAsset.get(assetId);
     return url;
   }
 
-  release(assetId: string): void {
-    const count = this.refCounts.get(assetId) ?? 0;
-    if (count <= 1) {
-      const url = this.urls.get(assetId);
-      if (url) {
-        URL.revokeObjectURL(url);
-      }
-      this.urls.delete(assetId);
-      this.refCounts.delete(assetId);
-      this.blobs.delete(assetId);
+  acquire(assetId: string, blob: Blob): string {
+    const latestUrl = this.latestByAsset.get(assetId);
+    const latest = latestUrl ? this.byUrl.get(latestUrl) : undefined;
+
+    if (latest && latest.blob === blob) {
+      latest.refCount += 1;
+      return latest.url;
+    }
+
+    const url = URL.createObjectURL(blob);
+    this.byUrl.set(url, { assetId, url, blob, refCount: 1 });
+    this.latestByAsset.set(assetId, url);
+    return url;
+  }
+
+  release(url: string): void {
+    const entry = this.byUrl.get(url);
+    if (!entry) {
       return;
     }
 
-    this.refCounts.set(assetId, count - 1);
+    entry.refCount -= 1;
+    if (entry.refCount > 0) {
+      return;
+    }
+
+    URL.revokeObjectURL(url);
+    this.byUrl.delete(url);
+
+    if (this.latestByAsset.get(entry.assetId) === url) {
+      this.latestByAsset.delete(entry.assetId);
+    }
   }
 
   revokeAll(): void {
-    for (const url of this.urls.values()) {
-      URL.revokeObjectURL(url);
+    for (const entry of this.byUrl.values()) {
+      URL.revokeObjectURL(entry.url);
     }
-    this.urls.clear();
-    this.refCounts.clear();
-    this.blobs.clear();
+    this.byUrl.clear();
+    this.latestByAsset.clear();
   }
 
   size(): number {
-    return this.urls.size;
+    return this.byUrl.size;
+  }
+
+  getRefCount(url: string): number {
+    return this.byUrl.get(url)?.refCount ?? 0;
   }
 }
 

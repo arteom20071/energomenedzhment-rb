@@ -1,15 +1,20 @@
 import type { Presentation } from "../../domain/presentation";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../domain/presentation";
-import { EXPORT_ERRORS } from "./errors";
+import { CaptureError, EXPORT_ERRORS, ResourceWaitError } from "./errors";
 
 export interface PngCaptureOptions {
   width?: number;
   height?: number;
   filter?: (node: HTMLElement) => boolean;
   waitForResources?: (root: HTMLElement, timeoutMs?: number) => Promise<void>;
-  toPng?: (node: HTMLElement, options: Record<string, unknown>) => Promise<string>;
+  toPng?: (
+    node: HTMLElement,
+    options: Record<string, unknown>,
+  ) => Promise<string>;
   resourceTimeoutMs?: number;
   captureTimeoutMs?: number;
+  captureSignal?: AbortSignal;
+  captureAbortController?: AbortController;
 }
 
 export interface PngCaptureResult {
@@ -64,7 +69,7 @@ function waitForImage(img: HTMLImageElement): { promise: Promise<void>; cleanup:
       return { promise: Promise.resolve(), cleanup: () => undefined };
     }
     return {
-      promise: Promise.reject(new Error("Image decode failed")),
+      promise: Promise.reject(new ResourceWaitError("Image decode failed", "image-decode")),
       cleanup: () => undefined,
     };
   }
@@ -82,7 +87,7 @@ function waitForImage(img: HTMLImageElement): { promise: Promise<void>; cleanup:
       if (img.naturalWidth > 0) {
         resolve();
       } else {
-        reject(new Error("Image decode failed"));
+        reject(new ResourceWaitError("Image decode failed", "image-decode"));
       }
     };
 
@@ -91,7 +96,7 @@ function waitForImage(img: HTMLImageElement): { promise: Promise<void>; cleanup:
         return;
       }
       settled = true;
-      reject(new Error("Image load failed"));
+      reject(new ResourceWaitError("Image load failed", "image-load"));
     };
 
     img.addEventListener("load", onLoad);
@@ -122,7 +127,14 @@ export async function waitForFontsAndImages(
     const tasks: Promise<unknown>[] = [];
 
     if (typeof document !== "undefined" && document.fonts?.ready) {
-      tasks.push(document.fonts.ready);
+      tasks.push(
+        document.fonts.ready.catch(
+          (error: unknown) => {
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new ResourceWaitError(detail, "font");
+          },
+        ),
+      );
     }
 
     const images = root.querySelectorAll("img");
@@ -136,7 +148,10 @@ export async function waitForFontsAndImages(
     await Promise.race([
       Promise.all(tasks),
       new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error("Resource timeout")), timeoutMs);
+        timeoutId = setTimeout(
+          () => reject(new ResourceWaitError("Resource timeout", "timeout")),
+          timeoutMs,
+        );
       }),
     ]);
   } finally {
@@ -149,18 +164,58 @@ export async function waitForFontsAndImages(
   }
 }
 
-async function withTimeout<T>(
+function mapResourceError(slideIndex: number, error: unknown): PngCaptureFailure {
+  if (error instanceof ResourceWaitError) {
+    switch (error.kind) {
+      case "font":
+        return { success: false, error: EXPORT_ERRORS.fontLoad(slideIndex, error.message) };
+      case "image-decode":
+        return { success: false, error: EXPORT_ERRORS.imageDecode(slideIndex, error.message) };
+      case "image-load":
+        return { success: false, error: EXPORT_ERRORS.imageLoad(slideIndex, error.message) };
+      case "timeout":
+        return { success: false, error: EXPORT_ERRORS.resourceTimeout(slideIndex) };
+      default:
+        return { success: false, error: EXPORT_ERRORS.resourceTimeout(slideIndex) };
+    }
+  }
+
+  const detail = error instanceof Error ? error.message : String(error);
+  if (detail.includes("decode")) {
+    return { success: false, error: EXPORT_ERRORS.imageDecode(slideIndex, detail) };
+  }
+  if (detail.includes("load failed")) {
+    return { success: false, error: EXPORT_ERRORS.imageLoad(slideIndex, detail) };
+  }
+  return { success: false, error: EXPORT_ERRORS.resourceTimeout(slideIndex) };
+}
+
+async function withCaptureTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  message: string,
+  abortController: AbortController,
 ): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let timedOut = false;
+
+  const observed = promise.catch((error: unknown) => {
+    if (timedOut) {
+      return Promise.reject(error);
+    }
+    throw error;
+  });
+
+  observed.catch(() => undefined);
 
   try {
     return await Promise.race([
-      promise,
+      observed,
       new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+        timeoutId = setTimeout(() => {
+          timedOut = true;
+          abortController.abort();
+          reject(new CaptureError("Capture timeout", "timeout"));
+        }, timeoutMs);
       }),
     ]);
   } finally {
@@ -168,6 +223,21 @@ async function withTimeout<T>(
       clearTimeout(timeoutId);
     }
   }
+}
+
+function mapCaptureError(slideIndex: number, error: unknown): PngCaptureFailure {
+  if (error instanceof CaptureError) {
+    if (error.kind === "timeout") {
+      return { success: false, error: EXPORT_ERRORS.captureTimeout(slideIndex) };
+    }
+    return { success: false, error: EXPORT_ERRORS.capture(slideIndex, error.message) };
+  }
+
+  const detail = error instanceof Error ? error.message : String(error);
+  if (detail.includes("Capture timeout")) {
+    return { success: false, error: EXPORT_ERRORS.captureTimeout(slideIndex) };
+  }
+  return { success: false, error: EXPORT_ERRORS.capture(slideIndex, detail) };
 }
 
 export async function captureSlidePng(
@@ -181,21 +251,13 @@ export async function captureSlidePng(
   const waitForResources = options.waitForResources ?? waitForFontsAndImages;
   const resourceTimeoutMs = options.resourceTimeoutMs ?? 5000;
   const captureTimeoutMs = options.captureTimeoutMs ?? 10000;
+  const abortController = options.captureAbortController ?? new AbortController();
+  const captureSignal = options.captureSignal ?? abortController.signal;
 
   try {
     await waitForResources(slideElement, resourceTimeoutMs);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    if (detail.includes("decode") || detail.includes("load failed")) {
-      return {
-        success: false,
-        error: EXPORT_ERRORS.capture(slideIndex, detail),
-      };
-    }
-    return {
-      success: false,
-      error: EXPORT_ERRORS.timeout(slideIndex),
-    };
+    return mapResourceError(slideIndex, error);
   }
 
   const toPng =
@@ -205,29 +267,30 @@ export async function captureSlidePng(
       return htmlToPng(node, captureOptions);
     });
 
+  const capturePromise = toPng(slideElement, {
+    width,
+    height,
+    canvasWidth: width,
+    canvasHeight: height,
+    pixelRatio: 1,
+    backgroundColor: "#ffffff",
+    filter,
+    signal: captureSignal,
+  });
+
+  capturePromise.catch(() => undefined);
+
   try {
-    const dataUrl = await withTimeout(
-      toPng(slideElement, {
-        width,
-        height,
-        canvasWidth: width,
-        canvasHeight: height,
-        pixelRatio: 1,
-        backgroundColor: "#ffffff",
-        filter,
-      }),
+    const dataUrl = await withCaptureTimeout(
+      capturePromise,
       captureTimeoutMs,
-      "Capture timeout",
+      abortController,
     );
 
     const blob = await dataUrlToBlob(dataUrl);
     return { success: true, dataUrl, blob };
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    return {
-      success: false,
-      error: EXPORT_ERRORS.capture(slideIndex, detail),
-    };
+    return mapCaptureError(slideIndex, error);
   }
 }
 

@@ -129,7 +129,7 @@ describe("AssetUrlCache", () => {
     const url = cache.acquire("a1", blob);
     expect(url).toBe("blob:mock");
 
-    cache.release("a1");
+    cache.release(url);
     expect(revokeSpy).toHaveBeenCalledWith("blob:mock");
     expect(cache.size()).toBe(0);
 
@@ -137,21 +137,24 @@ describe("AssetUrlCache", () => {
     revokeSpy.mockRestore();
   });
 
-  it("tracks reference counts", () => {
+  it("tracks reference counts by returned url token", () => {
     const cache = new AssetUrlCache();
     const blob = new Blob(["x"], { type: "text/plain" });
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:ref");
 
+    const url = cache.acquire("a1", blob);
     cache.acquire("a1", blob);
-    cache.acquire("a1", blob);
-    cache.release("a1");
+    expect(cache.getRefCount(url)).toBe(2);
+
+    cache.release(url);
+    expect(cache.getRefCount(url)).toBe(1);
     expect(cache.size()).toBe(1);
 
-    cache.release("a1");
+    cache.release(url);
     expect(cache.size()).toBe(0);
   });
 
-  it("revokes and replaces URL when blob changes for same id", () => {
+  it("keeps old url alive until its own consumers release after blob replacement", () => {
     const cache = new AssetUrlCache();
     const createSpy = vi
       .spyOn(URL, "createObjectURL")
@@ -159,14 +162,24 @@ describe("AssetUrlCache", () => {
       .mockReturnValueOnce("blob:new");
     const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
 
-    cache.acquire("a1", new Blob(["old"], { type: "text/plain" }));
-    const next = cache.acquire("a1", new Blob(["new"], { type: "text/plain" }));
+    const oldBlob = new Blob(["old"], { type: "text/plain" });
+    const newBlob = new Blob(["new"], { type: "text/plain" });
 
+    const oldUrl = cache.acquire("a1", oldBlob);
+    cache.acquire("a1", oldBlob);
+    const newUrl = cache.acquire("a1", newBlob);
+
+    expect(oldUrl).toBe("blob:old");
+    expect(newUrl).toBe("blob:new");
+    expect(revokeSpy).not.toHaveBeenCalled();
+
+    cache.release(oldUrl);
+    expect(revokeSpy).not.toHaveBeenCalled();
+    expect(cache.getRefCount(oldUrl)).toBe(1);
+
+    cache.release(oldUrl);
     expect(revokeSpy).toHaveBeenCalledWith("blob:old");
-    expect(next).toBe("blob:new");
-
-    cache.revokeAll();
-    expect(cache.size()).toBe(0);
+    expect(cache.getRefCount(newUrl)).toBe(1);
 
     createSpy.mockRestore();
     revokeSpy.mockRestore();

@@ -209,7 +209,10 @@ export function PresentationMode({
     );
   }
 
-  const transitionClass = `transition-${slide.transition}`;
+  const transitionClass =
+    slide.transition === "none" || slide.transition === "fade"
+      ? "transition-fade"
+      : `transition-${slide.transition}`;
 
   return (
     <div
@@ -258,10 +261,12 @@ export function PresentationMode({
       </button>
       <style>{`
         .presentation-slide { transition: opacity 0.4s ease, transform 0.4s ease; opacity: 1; }
-        .presentation-slide.stage-enter.transition-slide { transform: translateX(100%); }
-        .presentation-slide.stage-enter.transition-slide.stage-active { transform: translateX(0); }
-        .presentation-slide.stage-enter.transition-zoom { transform: scale(0.85); }
-        .presentation-slide.stage-enter.transition-zoom.stage-active { transform: scale(1); }
+        .presentation-slide.stage-enter.transition-fade { opacity: 0; transform: translateX(0) scale(1); }
+        .presentation-slide.stage-enter.transition-fade.stage-active { opacity: 1; transform: translateX(0) scale(1); }
+        .presentation-slide.stage-enter.transition-slide { opacity: 0; transform: translateX(100%); }
+        .presentation-slide.stage-enter.transition-slide.stage-active { opacity: 1; transform: translateX(0); }
+        .presentation-slide.stage-enter.transition-zoom { opacity: 0; transform: scale(0.85); }
+        .presentation-slide.stage-enter.transition-zoom.stage-active { opacity: 1; transform: scale(1); }
         .element-outer { position: absolute; }
         .element-inner { width: 100%; height: 100%; }
         .element-outer[data-animation="fade-up"] .element-inner { animation: presFadeUp 0.6s ease both; }
