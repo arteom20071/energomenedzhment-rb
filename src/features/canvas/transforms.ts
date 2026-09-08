@@ -3,6 +3,46 @@ import type { SlideElement } from "../../domain/presentation";
 
 import { viewportDeltaToLogical } from "./coordinates";
 
+export type ResizeDirection = "n" | "s" | "e" | "w" | "nw" | "ne" | "sw" | "se";
+
+export function directionFromMoveable(direction: unknown): ResizeDirection | undefined {
+  if (typeof direction === "string") {
+    return direction as ResizeDirection;
+  }
+
+  if (!Array.isArray(direction) || direction.length < 2) {
+    return undefined;
+  }
+
+  const [horizontal, vertical] = direction;
+  if (horizontal === 1 && vertical === 1) {
+    return "se";
+  }
+  if (horizontal === 1 && vertical === -1) {
+    return "ne";
+  }
+  if (horizontal === -1 && vertical === 1) {
+    return "sw";
+  }
+  if (horizontal === -1 && vertical === -1) {
+    return "nw";
+  }
+  if (horizontal === 1 && vertical === 0) {
+    return "e";
+  }
+  if (horizontal === -1 && vertical === 0) {
+    return "w";
+  }
+  if (horizontal === 0 && vertical === 1) {
+    return "s";
+  }
+  if (horizontal === 0 && vertical === -1) {
+    return "n";
+  }
+
+  return undefined;
+}
+
 export interface ElementTransform {
   x: number;
   y: number;
@@ -11,43 +51,92 @@ export interface ElementTransform {
   rotation: number;
 }
 
-export interface MoveableTransformEvent {
+export interface MoveableTranslateEvent {
   translate?: number[];
-  rotate?: number;
+}
+
+export interface MoveableResizeEvent extends MoveableTranslateEvent {
   width?: number;
   height?: number;
 }
 
-export function parseMoveableTransform(
-  event: MoveableTransformEvent,
+export interface MoveableRotateEvent extends MoveableTranslateEvent {
+  rotate?: number;
+}
+
+export type TransformBase = Pick<SlideElement, "x" | "y" | "width" | "height" | "rotation">;
+
+function applyTranslate(
+  base: TransformBase,
+  translate: number[] | undefined,
   effectiveScale: number,
-  base?: Pick<SlideElement, "x" | "y" | "width" | "height" | "rotation">,
+): Pick<ElementTransform, "x" | "y"> {
+  if (!translate) {
+    return { x: base.x, y: base.y };
+  }
+
+  const [dx, dy] = translate;
+  return {
+    x: base.x + viewportDeltaToLogical(dx, effectiveScale),
+    y: base.y + viewportDeltaToLogical(dy, effectiveScale),
+  };
+}
+
+export function parseMoveableDrag(
+  event: MoveableTranslateEvent,
+  effectiveScale: number,
+  base: TransformBase,
+): Pick<ElementTransform, "x" | "y"> {
+  return applyTranslate(base, event.translate, effectiveScale);
+}
+
+export function parseMoveableResize(
+  event: MoveableResizeEvent,
+  effectiveScale: number,
+  base: TransformBase,
+): Pick<ElementTransform, "x" | "y" | "width" | "height"> {
+  const position = applyTranslate(base, event.translate, effectiveScale);
+
+  return {
+    ...position,
+    width: event.width ?? base.width,
+    height: event.height ?? base.height,
+  };
+}
+
+export function parseMoveableRotate(
+  event: MoveableRotateEvent,
+  effectiveScale: number,
+  base: TransformBase,
+): Pick<ElementTransform, "x" | "y" | "rotation"> {
+  const position = applyTranslate(base, event.translate, effectiveScale);
+
+  return {
+    ...position,
+    rotation: base.rotation + (event.rotate ?? 0),
+  };
+}
+
+/** @deprecated Use parseMoveableDrag/Resize/Rotate instead. */
+export function parseMoveableTransform(
+  event: MoveableResizeEvent & MoveableRotateEvent,
+  effectiveScale: number,
+  base?: TransformBase,
 ): Partial<ElementTransform> {
-  const result: Partial<ElementTransform> = {};
-
-  if (event.translate) {
-    const [dx, dy] = event.translate;
-    const logicalDx = viewportDeltaToLogical(dx, effectiveScale);
-    const logicalDy = viewportDeltaToLogical(dy, effectiveScale);
-    if (base) {
-      result.x = base.x + logicalDx;
-      result.y = base.y + logicalDy;
-    } else {
-      result.x = logicalDx;
-      result.y = logicalDy;
-    }
+  if (!base) {
+    return {};
   }
 
-  if (event.width !== undefined) {
-    result.width = viewportDeltaToLogical(event.width, effectiveScale);
-  }
+  const result: Partial<ElementTransform> = {
+    ...parseMoveableDrag(event, effectiveScale, base),
+  };
 
-  if (event.height !== undefined) {
-    result.height = viewportDeltaToLogical(event.height, effectiveScale);
+  if (event.width !== undefined || event.height !== undefined) {
+    Object.assign(result, parseMoveableResize(event, effectiveScale, base));
   }
 
   if (event.rotate !== undefined) {
-    result.rotation = base ? base.rotation + event.rotate : event.rotate;
+    Object.assign(result, parseMoveableRotate(event, effectiveScale, base));
   }
 
   return result;
@@ -107,4 +196,25 @@ export function buildTransformCommitUpdates(
   }
 
   return updates;
+}
+
+export function applyGroupTranslateDelta(
+  starts: Map<string, ElementTransform>,
+  translate: number[],
+  effectiveScale: number,
+): Map<string, ElementTransform> {
+  const previews = new Map<string, ElementTransform>();
+  const [dx, dy] = translate;
+  const logicalDx = viewportDeltaToLogical(dx, effectiveScale);
+  const logicalDy = viewportDeltaToLogical(dy, effectiveScale);
+
+  for (const [id, start] of starts.entries()) {
+    previews.set(id, {
+      ...start,
+      x: start.x + logicalDx,
+      y: start.y + logicalDy,
+    });
+  }
+
+  return previews;
 }

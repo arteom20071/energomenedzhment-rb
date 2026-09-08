@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { CANVAS_HEIGHT, CANVAS_WIDTH, type Slide, type SlideElement } from "../../domain/presentation";
 import { computeEffectiveScale } from "./coordinates";
-import { SlideElementView } from "./SlideElementView";
+import { SlideElementView, type CropPreviewStyles } from "./SlideElementView";
 import type { SnapGuide } from "./snapping";
 import { SnapGuides } from "./SnapGuides";
 import { TextInlineEditor } from "./TextInlineEditor";
@@ -17,14 +17,17 @@ export interface SlideRendererProps {
   selectedIds?: string[];
   editingTextId?: string | null;
   cropElementId?: string | null;
+  cropPreview?: CropPreviewStyles | null;
   previewElements?: Map<string, Partial<ElementTransform>>;
   guides?: SnapGuide[];
   onElementDoubleClick?: (element: SlideElement) => void;
+  onRegisterElementRef?: (elementId: string, node: HTMLElement | null) => void;
   onTextCommit?: (elementId: string, content: string) => void;
   onTextCancel?: () => void;
+  onCropPreviewChange?: (styles: CropPreviewStyles) => void;
   onCropCommit?: (
     elementId: string,
-    styles: { objectPosition: string; cropScale: number },
+    styles: CropPreviewStyles,
   ) => void;
   onCropCancel?: () => void;
   children?: ReactNode;
@@ -38,11 +41,14 @@ export function SlideRenderer({
   selectedIds = [],
   editingTextId = null,
   cropElementId = null,
+  cropPreview = null,
   previewElements,
   guides = [],
   onElementDoubleClick,
+  onRegisterElementRef,
   onTextCommit,
   onTextCancel,
+  onCropPreviewChange,
   onCropCommit,
   onCropCancel,
   children,
@@ -92,10 +98,14 @@ export function SlideRenderer({
               key={element.id}
               element={element}
               preview={previewElements?.get(element.id)}
+              cropPreview={
+                cropElementId === element.id && cropPreview ? cropPreview : undefined
+              }
               isSelected={selectedSet.has(element.id)}
               isEditing={editingTextId === element.id}
               interactive={interactive}
               onDoubleClick={onElementDoubleClick}
+              onRegisterRef={onRegisterElementRef}
             />
           ))}
 
@@ -116,6 +126,7 @@ export function SlideRenderer({
             <ImageCropOverlay
               element={cropElement}
               scale={1}
+              onPreviewChange={(styles) => onCropPreviewChange?.(styles)}
               onCommit={(styles) => onCropCommit?.(cropElement.id, styles)}
               onCancel={() => onCropCancel?.()}
             />
@@ -127,3 +138,5 @@ export function SlideRenderer({
     </div>
   );
 }
+
+export type { CropPreviewStyles };

@@ -5,6 +5,7 @@ import {
   isEditableTarget,
   NUDGE_LARGE,
   NUDGE_SMALL,
+  ROTATE_SMALL,
 } from "./keyboard";
 
 describe("keyboard helpers", () => {
@@ -30,9 +31,7 @@ describe("keyboard helpers", () => {
       duplicateSelected: vi.fn(),
     });
 
-    handler(
-      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
-    );
+    handler(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
     expect(commit).toHaveBeenCalledWith(NUDGE_SMALL, 0);
 
     commit.mockClear();
@@ -40,6 +39,28 @@ describe("keyboard helpers", () => {
       new KeyboardEvent("keydown", { key: "ArrowUp", shiftKey: true, bubbles: true }),
     );
     expect(commit).toHaveBeenCalledWith(0, -NUDGE_LARGE);
+  });
+
+  it("supports rotate and resize keyboard transforms", () => {
+    const commitRotate = vi.fn();
+    const commitResize = vi.fn();
+    const handler = createCanvasKeyboardHandler({
+      selectedIds: ["a"],
+      isEditing: false,
+      commitNudge: vi.fn(),
+      commitRotate,
+      commitResize,
+      deleteSelected: vi.fn(),
+      duplicateSelected: vi.fn(),
+    });
+
+    handler(new KeyboardEvent("keydown", { key: "]", bubbles: true }));
+    expect(commitRotate).toHaveBeenCalledWith(ROTATE_SMALL);
+
+    handler(
+      new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true }),
+    );
+    expect(commitResize).toHaveBeenCalledWith(NUDGE_SMALL, 0);
   });
 
   it("handles delete and duplicate shortcuts", () => {

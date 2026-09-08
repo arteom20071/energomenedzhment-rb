@@ -1,5 +1,9 @@
 export const NUDGE_SMALL = 1;
 export const NUDGE_LARGE = 10;
+export const ROTATE_SMALL = 1;
+export const ROTATE_LARGE = 15;
+export const RESIZE_SMALL = 1;
+export const RESIZE_LARGE = 10;
 
 export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -22,6 +26,8 @@ export interface CanvasKeyboardActions {
   selectedIds: string[];
   isEditing: boolean;
   commitNudge: (dx: number, dy: number) => void;
+  commitRotate?: (delta: number) => void;
+  commitResize?: (dw: number, dh: number) => void;
   deleteSelected: () => void;
   duplicateSelected: () => void;
 }
@@ -37,23 +43,53 @@ export function createCanvasKeyboardHandler(actions: CanvasKeyboardActions) {
     }
 
     const step = event.shiftKey ? NUDGE_LARGE : NUDGE_SMALL;
+    const rotateStep = event.shiftKey ? ROTATE_LARGE : ROTATE_SMALL;
+    const resizeStep = event.shiftKey ? RESIZE_LARGE : RESIZE_SMALL;
 
     switch (event.key) {
       case "ArrowLeft":
         event.preventDefault();
-        actions.commitNudge(-step, 0);
+        if (event.altKey && actions.commitResize) {
+          actions.commitResize(-resizeStep, 0);
+        } else {
+          actions.commitNudge(-step, 0);
+        }
         break;
       case "ArrowRight":
         event.preventDefault();
-        actions.commitNudge(step, 0);
+        if (event.altKey && actions.commitResize) {
+          actions.commitResize(resizeStep, 0);
+        } else {
+          actions.commitNudge(step, 0);
+        }
         break;
       case "ArrowUp":
         event.preventDefault();
-        actions.commitNudge(0, -step);
+        if (event.altKey && actions.commitResize) {
+          actions.commitResize(0, -resizeStep);
+        } else {
+          actions.commitNudge(0, -step);
+        }
         break;
       case "ArrowDown":
         event.preventDefault();
-        actions.commitNudge(0, step);
+        if (event.altKey && actions.commitResize) {
+          actions.commitResize(0, resizeStep);
+        } else {
+          actions.commitNudge(0, step);
+        }
+        break;
+      case "[":
+        if (actions.commitRotate) {
+          event.preventDefault();
+          actions.commitRotate(-rotateStep);
+        }
+        break;
+      case "]":
+        if (actions.commitRotate) {
+          event.preventDefault();
+          actions.commitRotate(rotateStep);
+        }
         break;
       case "Delete":
       case "Backspace":

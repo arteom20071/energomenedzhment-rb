@@ -12,64 +12,23 @@ import {
 import { createEditorStore, type EditorStoreApi } from "../../store/editorStore";
 import { SlideCanvas } from "./SlideCanvas";
 
+type MoveableHandlerProps = Record<string, unknown>;
+
+let capturedMoveableHandlers: MoveableHandlerProps = {};
+
+function target(id: string): HTMLElement {
+  const node = document.querySelector(`[data-element-id="${id}"]`) as HTMLElement;
+  if (!node) {
+    throw new Error(`Missing target ${id}`);
+  }
+  return node;
+}
+
 vi.mock("react-moveable", () => ({
-  default: ({
-    onDragStart,
-    onDrag,
-    onDragEnd,
-    onResize,
-    onResizeEnd,
-    onRotate,
-    onRotateEnd,
-  }: {
-    onDragStart?: () => void;
-    onDrag?: (event: { target: HTMLElement; translate: number[] }) => void;
-    onDragEnd?: (event: { target: HTMLElement; lastEvent?: { translate: number[] } }) => void;
-    onResize?: (event: { target: HTMLElement; width: number; height: number; drag: { translate: number[] } }) => void;
-    onResizeEnd?: (event: { target: HTMLElement; lastEvent?: { width: number; height: number; drag: { translate: number[] } } }) => void;
-    onRotate?: (event: { target: HTMLElement; rotate: number; drag: { translate: number[] } }) => void;
-    onRotateEnd?: (event: { target: HTMLElement; lastEvent?: { rotate: number; drag: { translate: number[] } } }) => void;
-  }) => (
-    <div data-testid="moveable-mock">
-      <button
-        type="button"
-        data-testid="moveable-drag"
-        onClick={() => {
-          const target = document.querySelector('[data-element-id="el-a"]') as HTMLElement;
-          onDragStart?.();
-          onDrag?.({ target, translate: [20, 10] });
-          onDragEnd?.({ target, lastEvent: { translate: [20, 10] } });
-        }}
-      >
-        drag
-      </button>
-      <button
-        type="button"
-        data-testid="moveable-resize"
-        onClick={() => {
-          const target = document.querySelector('[data-element-id="el-a"]') as HTMLElement;
-          onResize?.({ target, width: 200, height: 100, drag: { translate: [0, 0] } });
-          onResizeEnd?.({
-            target,
-            lastEvent: { width: 200, height: 100, drag: { translate: [0, 0] } },
-          });
-        }}
-      >
-        resize
-      </button>
-      <button
-        type="button"
-        data-testid="moveable-rotate"
-        onClick={() => {
-          const target = document.querySelector('[data-element-id="el-a"]') as HTMLElement;
-          onRotate?.({ target, rotate: 10, drag: { translate: [0, 0] } });
-          onRotateEnd?.({ target, lastEvent: { rotate: 10, drag: { translate: [0, 0] } } });
-        }}
-      >
-        rotate
-      </button>
-    </div>
-  ),
+  default: (props: MoveableHandlerProps) => {
+    capturedMoveableHandlers = props;
+    return <div data-testid="moveable-mock" />;
+  },
 }));
 
 vi.mock("react-selecto", () => ({
@@ -77,23 +36,44 @@ vi.mock("react-selecto", () => ({
     onSelect,
     onSelectEnd,
   }: {
-    onSelect?: (event: { selected: HTMLElement[]; added: HTMLElement[]; removed: HTMLElement[]; inputEvent?: MouseEvent }) => void;
-    onSelectEnd?: (event: { selected: HTMLElement[]; isDragStartEnd?: boolean; inputEvent?: MouseEvent }) => void;
+    onSelect?: (event: {
+      selected: HTMLElement[];
+      added: HTMLElement[];
+      removed: HTMLElement[];
+      inputEvent?: MouseEvent;
+    }) => void;
+    onSelectEnd?: (event: {
+      selected: HTMLElement[];
+      isDragStartEnd?: boolean;
+      inputEvent?: MouseEvent;
+    }) => void;
   }) => (
     <div data-testid="selecto-mock">
       <button
         type="button"
         data-testid="selecto-select"
         onClick={() => {
-          const selected = [
-            document.querySelector('[data-element-id="el-a"]'),
-            document.querySelector('[data-element-id="el-b"]'),
-          ].filter(Boolean) as HTMLElement[];
+          const selected = [target("el-a"), target("el-b")];
           onSelect?.({ selected, added: selected, removed: [] });
           onSelectEnd?.({ selected, isDragStartEnd: true });
         }}
       >
         marquee
+      </button>
+      <button
+        type="button"
+        data-testid="selecto-shift-add"
+        onClick={() => {
+          const added = [target("el-b")];
+          onSelect?.({
+            selected: [target("el-a"), target("el-b")],
+            added,
+            removed: [],
+            inputEvent: { shiftKey: true } as MouseEvent,
+          });
+        }}
+      >
+        shift-add
       </button>
       <button
         type="button"
@@ -108,6 +88,130 @@ vi.mock("react-selecto", () => ({
   ),
 }));
 
+function emitSingleDrag(zoom = 1) {
+  const handlers = capturedMoveableHandlers as {
+    onDragStart?: () => void;
+    onDrag?: (event: { target: HTMLElement; translate: number[] }) => void;
+    onDragEnd?: () => void;
+  };
+  handlers.onDragStart?.();
+  handlers.onDrag?.({ target: target("el-a"), translate: [20 * zoom, 10 * zoom] });
+  handlers.onDragEnd?.();
+}
+
+function emitSingleResize() {
+  const handlers = capturedMoveableHandlers as {
+    onResizeStart?: (event: { direction: string }) => void;
+    onResize?: (event: {
+      target: HTMLElement;
+      width: number;
+      height: number;
+      drag: { translate: number[] };
+    }) => void;
+    onResizeEnd?: () => void;
+  };
+  handlers.onResizeStart?.({ direction: "e" });
+  handlers.onResize?.({
+    target: target("el-a"),
+    width: 240,
+    height: 80,
+    drag: { translate: [0, 0] },
+  });
+  handlers.onResizeEnd?.();
+}
+
+function emitSingleRotate() {
+  const handlers = capturedMoveableHandlers as {
+    onRotateStart?: () => void;
+    onRotate?: (event: {
+      target: HTMLElement;
+      rotate: number;
+      drag: { translate: number[] };
+    }) => void;
+    onRotateEnd?: () => void;
+  };
+  handlers.onRotateStart?.();
+  handlers.onRotate?.({
+    target: target("el-a"),
+    rotate: 10,
+    drag: { translate: [0, 0] },
+  });
+  handlers.onRotateEnd?.();
+}
+
+function emitGroupDrag() {
+  const handlers = capturedMoveableHandlers as {
+    onDragGroupStart?: () => void;
+    onDragGroup?: (event: {
+      events: Array<{ target: HTMLElement; translate: number[] }>;
+    }) => void;
+    onDragGroupEnd?: () => void;
+  };
+  handlers.onDragGroupStart?.();
+  handlers.onDragGroup?.({
+    events: [
+      { target: target("el-a"), translate: [20, 10] },
+      { target: target("el-b"), translate: [20, 10] },
+    ],
+  });
+  handlers.onDragGroupEnd?.();
+}
+
+function emitGroupResize() {
+  const handlers = capturedMoveableHandlers as {
+    onResizeGroupStart?: (event: { direction: string }) => void;
+    onResizeGroup?: (event: {
+      events: Array<{
+        target: HTMLElement;
+        width: number;
+        height: number;
+        drag: { translate: number[] };
+      }>;
+    }) => void;
+    onResizeGroupEnd?: () => void;
+  };
+  handlers.onResizeGroupStart?.({ direction: "se" });
+  handlers.onResizeGroup?.({
+    events: [
+      {
+        target: target("el-a"),
+        width: 220,
+        height: 90,
+        drag: { translate: [0, 0] },
+      },
+      {
+        target: target("el-b"),
+        width: 220,
+        height: 90,
+        drag: { translate: [0, 0] },
+      },
+    ],
+  });
+  handlers.onResizeGroupEnd?.();
+}
+
+function emitGroupRotate() {
+  const handlers = capturedMoveableHandlers as {
+    onRotateGroupStart?: () => void;
+    onRotateGroup?: (event: {
+      events: Array<{
+        target: HTMLElement;
+        rotate: number;
+        drag: { translate: number[] };
+      }>;
+    }) => void;
+    onRotateGroupEnd?: () => void;
+  };
+  handlers.onRotateGroupStart?.();
+  handlers.onRotateGroup?.({
+    events: [
+      { target: target("el-a"), rotate: 12, drag: { translate: [0, 0] } },
+      { target: target("el-b"), rotate: 12, drag: { translate: [0, 0] } },
+    ],
+  });
+  handlers.onRotateGroupEnd?.();
+}
+
 function buildStore(): EditorStoreApi {
   let counter = 0;
   setIdGenerator(() => `gen-${++counter}`);
@@ -120,6 +224,7 @@ function buildStore(): EditorStoreApi {
       y: 100,
       width: 200,
       height: 80,
+      rotation: 0,
       content: "Alpha",
     }),
     createTextElement(slide.elements, {
@@ -128,6 +233,7 @@ function buildStore(): EditorStoreApi {
       y: 200,
       width: 200,
       height: 80,
+      rotation: 0,
       content: "Beta",
     }),
   ];
@@ -166,6 +272,7 @@ function CanvasHarness({ store }: { store: EditorStoreApi }) {
 
 beforeEach(() => {
   resetIdGenerator();
+  capturedMoveableHandlers = {};
 });
 
 describe("SlideCanvas", () => {
@@ -175,7 +282,7 @@ describe("SlideCanvas", () => {
     const commitSpy = vi.spyOn(store.getState(), "commitElementTransforms");
 
     render(<CanvasHarness store={store} />);
-    fireEvent.click(screen.getByTestId("moveable-drag"));
+    emitSingleDrag();
 
     await waitFor(() => {
       expect(commitSpy).toHaveBeenCalledTimes(1);
@@ -189,11 +296,94 @@ describe("SlideCanvas", () => {
     expect(element?.y).toBe(110);
   });
 
-  it("supports marquee multi-selection through selecto adapter", () => {
+  it("commits resize using logical width/height at zoom 2", async () => {
     const store = buildStore();
+    store.getState().setSelection(["el-a"]);
+    store.getState().setZoom(2);
+    const commitSpy = vi.spyOn(store.getState(), "commitElementTransforms");
+
+    render(<CanvasHarness store={store} />);
+    emitSingleResize();
+
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(1));
+    const element = store
+      .getState()
+      .presentation.slides[0]!
+      .elements.find((el) => el.id === "el-a");
+    expect(element?.width).toBe(240);
+    expect(element?.height).toBe(80);
+  });
+
+  it("commits rotation without positional snap side effects", async () => {
+    const store = buildStore();
+    store.getState().setSelection(["el-a"]);
+    const commitSpy = vi.spyOn(store.getState(), "commitElementTransforms");
+
+    render(<CanvasHarness store={store} />);
+    emitSingleRotate();
+
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(1));
+    const element = store
+      .getState()
+      .presentation.slides[0]!
+      .elements.find((el) => el.id === "el-a");
+    expect(element?.rotation).toBe(10);
+    expect(element?.x).toBe(100);
+    expect(element?.y).toBe(100);
+  });
+
+  it("group drag updates all selected previews and commits once", async () => {
+    const store = buildStore();
+    store.getState().setSelection(["el-a", "el-b"]);
+    const commitSpy = vi.spyOn(store.getState(), "commitElementTransforms");
+    const pastBefore = store.temporal.getState().pastStates.length;
+
+    render(<CanvasHarness store={store} />);
+    emitGroupDrag();
+
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(1));
+    expect(commitSpy.mock.calls[0]?.[0]).toHaveLength(2);
+
+    const elements = store.getState().presentation.slides[0]!.elements;
+    expect(elements.find((el) => el.id === "el-a")).toMatchObject({ x: 120, y: 110 });
+    expect(elements.find((el) => el.id === "el-b")).toMatchObject({ x: 420, y: 210 });
+    expect(store.temporal.getState().pastStates.length).toBe(pastBefore + 1);
+  });
+
+  it("group resize and rotate each commit all changed elements once", async () => {
+    const store = buildStore();
+    store.getState().setSelection(["el-a", "el-b"]);
+    const commitSpy = vi.spyOn(store.getState(), "commitElementTransforms");
+
     render(<CanvasHarness store={store} />);
 
-    fireEvent.click(screen.getByTestId("selecto-select"));
+    emitGroupResize();
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(1));
+    expect(commitSpy.mock.calls[0]?.[0]).toHaveLength(2);
+
+    emitGroupRotate();
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(2));
+    expect(commitSpy.mock.calls[1]?.[0]).toHaveLength(2);
+
+    const elements = store.getState().presentation.slides[0]!.elements;
+    expect(elements.find((el) => el.id === "el-a")).toMatchObject({
+      width: 220,
+      height: 90,
+      rotation: 12,
+    });
+    expect(elements.find((el) => el.id === "el-b")).toMatchObject({
+      width: 220,
+      height: 90,
+      rotation: 12,
+    });
+  });
+
+  it("supports shift-toggle multi-selection", () => {
+    const store = buildStore();
+    store.getState().setSelection(["el-a"]);
+    render(<CanvasHarness store={store} />);
+
+    fireEvent.click(screen.getByTestId("selecto-shift-add"));
     expect(store.getState().selectedElementIds.sort()).toEqual(["el-a", "el-b"]);
   });
 
@@ -206,16 +396,30 @@ describe("SlideCanvas", () => {
     expect(store.getState().selectedElementIds).toEqual([]);
   });
 
-  it("enters inline text editing on double-click", () => {
+  it("text editing commits on blur and cancels on escape", () => {
     const store = buildStore();
     render(<CanvasHarness store={store} />);
 
     fireEvent.doubleClick(screen.getByTestId("element-el-a"));
-    expect(store.getState().editingTextId).toBe("el-a");
-    expect(screen.getByRole("textbox")).toHaveTextContent("Alpha");
+    const editor = screen.getByRole("textbox");
+    editor.textContent = "Updated";
+    fireEvent.blur(editor);
+
+    expect(
+      store.getState().presentation.slides[0]!.elements.find((el) => el.id === "el-a")?.content,
+    ).toBe("Updated");
+    expect(store.getState().editingTextId).toBeNull();
+
+    fireEvent.doubleClick(screen.getByTestId("element-el-a"));
+    const editorAgain = screen.getByRole("textbox");
+    editorAgain.textContent = "Discarded";
+    fireEvent.keyDown(editorAgain, { key: "Escape" });
+    expect(
+      store.getState().presentation.slides[0]!.elements.find((el) => el.id === "el-a")?.content,
+    ).toBe("Updated");
   });
 
-  it("enters image crop mode on image double-click", () => {
+  it("crop mode previews live, commits on enter, cancels on escape", () => {
     const store = buildStore();
     const slide = store.getState().presentation.slides[0]!;
     slide.elements.push(
@@ -225,13 +429,54 @@ describe("SlideCanvas", () => {
         y: 50,
         width: 300,
         height: 200,
+        rotation: 30,
         content: "https://example.com/photo.jpg",
       }),
     );
 
     render(<CanvasHarness store={store} />);
     fireEvent.doubleClick(screen.getByTestId("element-img-1"));
-    expect(store.getState().cropElementId).toBe("img-1");
-    expect(screen.getByRole("dialog", { name: /crop image/i })).toBeInTheDocument();
+
+    const dialog = screen.getByRole("dialog", { name: /crop image/i });
+    fireEvent.keyDown(dialog, { key: "ArrowRight" });
+    fireEvent.keyDown(dialog, { key: "=" });
+
+    const image = screen.getByTestId("element-image-img-1");
+    expect(image).toHaveStyle({ objectPosition: "51% 50%" });
+
+    fireEvent.keyDown(dialog, { key: "Enter" });
+    const committed = store
+      .getState()
+      .presentation.slides[0]!
+      .elements.find((el) => el.id === "img-1");
+    expect(committed?.styles.objectPosition).toBe("51% 50%");
+    expect(committed?.styles.cropScale).toBeGreaterThan(1);
+    expect(store.getState().cropElementId).toBeNull();
+
+    fireEvent.doubleClick(screen.getByTestId("element-img-1"));
+    fireEvent.keyDown(screen.getByRole("dialog", { name: /crop image/i }), { key: "Escape" });
+    expect(store.getState().cropElementId).toBeNull();
+    expect(committed?.styles.objectPosition).toBe("51% 50%");
+  });
+
+  it("resolves special-character ids without unsafe selectors", () => {
+    const store = buildStore();
+    const slide = store.getState().presentation.slides[0]!;
+    slide.elements.push(
+      createTextElement(slide.elements, {
+        id: 'weird["id"]',
+        x: 10,
+        y: 10,
+        width: 100,
+        height: 40,
+        content: "Odd",
+      }),
+    );
+
+    store.getState().setSelection(['weird["id"]']);
+    render(<CanvasHarness store={store} />);
+
+    expect(screen.getByTestId('element-weird["id"]')).toBeInTheDocument();
+    expect(capturedMoveableHandlers.target).toBeTruthy();
   });
 });

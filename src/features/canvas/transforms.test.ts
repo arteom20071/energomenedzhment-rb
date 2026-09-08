@@ -4,7 +4,10 @@ import type { SlideElement } from "../../domain/presentation";
 import {
   applyTransformPreview,
   buildTransformCommitUpdates,
-  parseMoveableTransform,
+  directionFromMoveable,
+  parseMoveableDrag,
+  parseMoveableResize,
+  parseMoveableRotate,
 } from "./transforms";
 
 function element(overrides: Partial<SlideElement> = {}): SlideElement {
@@ -22,20 +25,61 @@ function element(overrides: Partial<SlideElement> = {}): SlideElement {
   };
 }
 
+const base = { x: 100, y: 200, width: 120, height: 80, rotation: 15 };
+
 describe("transforms", () => {
-  it("parses moveable transform into logical geometry", () => {
-    const parsed = parseMoveableTransform(
-      { translate: [10, -5], rotate: 5, width: 240, height: 160 },
-      2,
-      { x: 100, y: 200, width: 120, height: 80, rotation: 15 },
-    );
-    expect(parsed).toEqual({
-      x: 105,
-      y: 197.5,
-      width: 120,
-      height: 80,
-      rotation: 20,
+  describe("parseMoveableDrag", () => {
+    it.each([
+      { scale: 0.5, translate: [10, -6], expected: { x: 120, y: 188 } },
+      { scale: 1, translate: [20, 10], expected: { x: 120, y: 210 } },
+      { scale: 2, translate: [10, -5], expected: { x: 105, y: 197.5 } },
+    ])("converts viewport drag deltas at zoom $scale", ({ scale, translate, expected }) => {
+      const parsed = parseMoveableDrag({ translate }, scale, base);
+      expect(parsed).toEqual(expected);
     });
+  });
+
+  describe("parseMoveableResize", () => {
+    it.each([
+      { scale: 0.5, width: 240, height: 160 },
+      { scale: 1, width: 200, height: 100 },
+      { scale: 2, width: 180, height: 90 },
+    ])("keeps moveable width/height as logical CSS units at zoom $scale", ({ scale, width, height }) => {
+      const parsed = parseMoveableResize(
+        { translate: [0, 0], width, height },
+        scale,
+        base,
+      );
+      expect(parsed.width).toBe(width);
+      expect(parsed.height).toBe(height);
+      expect(parsed.x).toBe(base.x);
+      expect(parsed.y).toBe(base.y);
+    });
+
+    it("converts resize drag translate but not dimensions", () => {
+      const parsed = parseMoveableResize(
+        { translate: [20, 0], width: 140, height: 80 },
+        2,
+        base,
+      );
+      expect(parsed).toEqual({ x: 110, y: 200, width: 140, height: 80 });
+    });
+  });
+
+  describe("parseMoveableRotate", () => {
+    it.each([
+      { scale: 0.5, rotate: 10, translate: [4, 0], expectedRotation: 25, expectedX: 108 },
+      { scale: 1, rotate: 10, translate: [0, 0], expectedRotation: 25, expectedX: 100 },
+      { scale: 2, rotate: 5, translate: [10, 0], expectedRotation: 20, expectedX: 105 },
+    ])(
+      "applies rotation delta and optional drag translate at zoom $scale",
+      ({ scale, rotate, translate, expectedRotation, expectedX }) => {
+        const parsed = parseMoveableRotate({ rotate, translate }, scale, base);
+        expect(parsed.rotation).toBe(expectedRotation);
+        expect(parsed.x).toBe(expectedX);
+        expect(parsed.y).toBe(200);
+      },
+    );
   });
 
   it("applies transient preview without mutating source elements", () => {
@@ -66,5 +110,13 @@ describe("transforms", () => {
       ["a", { x: 100, y: 200, width: 120, height: 80, rotation: 15 }],
     ]);
     expect(buildTransformCommitUpdates([a], previews)).toEqual([]);
+  });
+
+  it("maps moveable direction arrays to resize handles", () => {
+    expect(directionFromMoveable([1, 0])).toBe("e");
+    expect(directionFromMoveable([-1, 0])).toBe("w");
+    expect(directionFromMoveable([0, 1])).toBe("s");
+    expect(directionFromMoveable([0, -1])).toBe("n");
+    expect(directionFromMoveable([1, 1])).toBe("se");
   });
 });

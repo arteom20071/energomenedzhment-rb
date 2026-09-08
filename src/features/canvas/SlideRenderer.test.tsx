@@ -66,10 +66,45 @@ describe("SlideRenderer", () => {
     const shape = screen.getByTestId("element-shape-1");
     expect(shape).toHaveStyle({ left: "600px", top: "200px" });
 
-    const image = screen.getByTestId("element-image-1");
+    const frame = screen.getByTestId("element-image-1");
+    expect(frame).toHaveStyle({ left: "50px", top: "400px", overflow: "hidden" });
+
+    const image = screen.getByTestId("element-image-image-1");
     expect(image.tagName).toBe("IMG");
     expect(image).toHaveAttribute("src", "https://example.com/image.png");
     expect(image).toHaveAttribute("alt", "Example");
+  });
+
+  it("keeps image crop scale on inner img without overwriting frame rotation", () => {
+    const slide = buildSlide();
+    slide.elements[2]!.rotation = 45;
+    render(
+      <SlideRenderer
+        slide={slide}
+        interactive
+        cropPreview={{ objectPosition: "20% 80%", cropScale: 1.5 }}
+        cropElementId="image-1"
+      />,
+    );
+
+    const frame = screen.getByTestId("element-image-1");
+    expect(frame).toHaveStyle({ transform: "rotate(45deg)" });
+
+    const image = screen.getByTestId("element-image-image-1");
+    expect(image).toHaveStyle({
+      objectPosition: "20% 80%",
+      transform: "scale(1.5)",
+    });
+  });
+
+  it("exposes selected elements as focusable with aria state", () => {
+    render(
+      <SlideRenderer slide={buildSlide()} interactive selectedIds={["text-1"]} />,
+    );
+
+    const text = screen.getByTestId("element-text-1");
+    expect(text).toHaveAttribute("tabindex", "0");
+    expect(text).toHaveAttribute("aria-selected", "true");
   });
 
   it("does not render editor chrome when interactive is false", () => {

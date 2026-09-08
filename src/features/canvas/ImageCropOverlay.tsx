@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SlideElement } from "../../domain/presentation";
+
+export interface CropPreviewStyles {
+  objectPosition: string;
+  cropScale: number;
+}
 
 export interface ImageCropOverlayProps {
   element: SlideElement;
   scale: number;
-  onCommit: (styles: { objectPosition: string; cropScale: number }) => void;
+  onPreviewChange: (styles: CropPreviewStyles) => void;
+  onCommit: (styles: CropPreviewStyles) => void;
   onCancel: () => void;
 }
 
@@ -32,44 +38,117 @@ function parseObjectPosition(value: unknown): { x: number; y: number } {
 }
 
 function formatObjectPosition(x: number, y: number): string {
-  return `${x}% ${y}%`;
+  return `${Math.round(x * 10) / 10}% ${Math.round(y * 10) / 10}%`;
+}
+
+function toPreview(focal: { x: number; y: number }, cropScale: number): CropPreviewStyles {
+  return {
+    objectPosition: formatObjectPosition(focal.x, focal.y),
+    cropScale,
+  };
 }
 
 export function ImageCropOverlay({
   element,
   scale,
+  onPreviewChange,
   onCommit,
   onCancel,
 }: ImageCropOverlayProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const initialPosition = parseObjectPosition(element.styles.objectPosition);
   const initialScale =
     typeof element.styles.cropScale === "number" ? element.styles.cropScale : 1;
 
   const [focal, setFocal] = useState(initialPosition);
   const [cropScale, setCropScale] = useState(initialScale);
+  const previewRef = useRef(toPreview(initialPosition, initialScale));
 
-  const commit = useCallback(() => {
-    onCommit({
-      objectPosition: formatObjectPosition(focal.x, focal.y),
-      cropScale,
-    });
-  }, [cropScale, focal.x, focal.y, onCommit]);
+  const publishPreview = useCallback(
+    (nextFocal: { x: number; y: number }, nextScale: number) => {
+      const preview = toPreview(nextFocal, nextScale);
+      previewRef.current = preview;
+      onPreviewChange(preview);
+    },
+    [onPreviewChange],
+  );
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCancel();
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commit();
-      }
-    };
+    dialogRef.current?.focus();
+  }, []);
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commit, onCancel]);
+  const commit = useCallback(() => {
+    onCommit(previewRef.current);
+  }, [onCommit]);
+
+  const moveFocal = useCallback(
+    (dx: number, dy: number) => {
+      setFocal((current) => {
+        const next = {
+          x: Math.min(100, Math.max(0, current.x + dx)),
+          y: Math.min(100, Math.max(0, current.y + dy)),
+        };
+        publishPreview(next, cropScale);
+        return next;
+      });
+    },
+    [cropScale, publishPreview],
+  );
+
+  const adjustScale = useCallback(
+    (delta: number) => {
+      setCropScale((current) => {
+        const next = Math.min(3, Math.max(1, Number((current + delta).toFixed(2))));
+        publishPreview(focal, next);
+        return next;
+      });
+    },
+    [focal, publishPreview],
+  );
+
+  const onKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      switch (event.key) {
+        case "Escape":
+          event.preventDefault();
+          onCancel();
+          break;
+        case "Enter":
+          event.preventDefault();
+          commit();
+          break;
+        case "ArrowLeft":
+          event.preventDefault();
+          moveFocal(event.shiftKey ? -10 : -1, 0);
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          moveFocal(event.shiftKey ? 10 : 1, 0);
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          moveFocal(0, event.shiftKey ? -10 : -1);
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          moveFocal(0, event.shiftKey ? 10 : 1);
+          break;
+        case "+":
+        case "=":
+          event.preventDefault();
+          adjustScale(0.05);
+          break;
+        case "-":
+        case "_":
+          event.preventDefault();
+          adjustScale(-0.05);
+          break;
+        default:
+          break;
+      }
+    },
+    [adjustScale, commit, moveFocal, onCancel],
+  );
 
   const frameStyle = {
     position: "absolute" as const,
@@ -85,17 +164,21 @@ export function ImageCropOverlay({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-label="Crop image"
+      tabIndex={-1}
       data-testid={`crop-overlay-${element.id}`}
       style={frameStyle}
-      className="pointer-events-auto bg-black/20"
+      className="pointer-events-auto bg-black/20 outline-none"
+      onKeyDown={onKeyDown}
       onPointerDown={(event) => event.stopPropagation()}
     >
       <button
         type="button"
         aria-label="Drag focal point"
         data-testid="crop-focal-handle"
+        tabIndex={0}
         className="absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-indigo-500"
         style={{ left: `${focal.x}%`, top: `${focal.y}%` }}
         onPointerDown={(event) => {
@@ -109,10 +192,12 @@ export function ImageCropOverlay({
             const rect = frame.getBoundingClientRect();
             const x = ((moveEvent.clientX - rect.left) / rect.width) * 100;
             const y = ((moveEvent.clientY - rect.top) / rect.height) * 100;
-            setFocal({
+            const next = {
               x: Math.min(100, Math.max(0, x)),
               y: Math.min(100, Math.max(0, y)),
-            });
+            };
+            setFocal(next);
+            publishPreview(next, cropScale);
           };
 
           const onUp = () => {
@@ -134,7 +219,11 @@ export function ImageCropOverlay({
           max={3}
           step={0.05}
           value={cropScale}
-          onChange={(event) => setCropScale(Number.parseFloat(event.target.value))}
+          onChange={(event) => {
+            const next = Number.parseFloat(event.target.value);
+            setCropScale(next);
+            publishPreview(focal, next);
+          }}
           className="ml-2 align-middle"
         />
       </label>
@@ -142,6 +231,7 @@ export function ImageCropOverlay({
       <div className="absolute right-2 top-2 flex gap-2">
         <button
           type="button"
+          aria-label="Apply crop"
           className="rounded bg-indigo-500 px-2 py-1 text-xs text-white"
           onClick={commit}
         >
@@ -149,6 +239,7 @@ export function ImageCropOverlay({
         </button>
         <button
           type="button"
+          aria-label="Cancel crop"
           className="rounded bg-slate-700 px-2 py-1 text-xs text-white"
           onClick={onCancel}
         >
