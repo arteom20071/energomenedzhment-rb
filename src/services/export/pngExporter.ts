@@ -14,7 +14,7 @@ export interface PngCaptureOptions {
   resourceTimeoutMs?: number;
   captureTimeoutMs?: number;
   captureSignal?: AbortSignal;
-  captureAbortController?: AbortController;
+  fetchRequestInit?: RequestInit;
 }
 
 export interface PngCaptureResult {
@@ -28,6 +28,11 @@ export interface PngCaptureFailure {
   error: string;
 }
 
+export interface CaptureAbortScope {
+  controller: AbortController;
+  signal: AbortSignal;
+}
+
 const CHROME_SELECTORS = [
   "[data-editor-chrome]",
   "[data-selection-handle]",
@@ -35,6 +40,60 @@ const CHROME_SELECTORS = [
   ".moveable-control-box",
   ".selecto-selection",
 ];
+
+export function createCaptureAbortScope(callerSignal?: AbortSignal): CaptureAbortScope {
+  const controller = new AbortController();
+
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      controller.abort(callerSignal.reason);
+    } else {
+      callerSignal.addEventListener(
+        "abort",
+        () => {
+          controller.abort(callerSignal.reason);
+        },
+        { once: true },
+      );
+    }
+  }
+
+  return { controller, signal: controller.signal };
+}
+
+export function buildHtmlToImageCaptureOptions(
+  params: {
+    width: number;
+    height: number;
+    filter: (node: HTMLElement) => boolean;
+    signal: AbortSignal;
+    fetchRequestInit?: RequestInit;
+  },
+): Record<string, unknown> {
+  return {
+    width: params.width,
+    height: params.height,
+    canvasWidth: params.width,
+    canvasHeight: params.height,
+    pixelRatio: 1,
+    backgroundColor: "#ffffff",
+    filter: params.filter,
+    fetchRequestInit: {
+      ...params.fetchRequestInit,
+      signal: params.signal,
+    },
+  };
+}
+
+export function createDefaultToPngCapture(): (
+  node: HTMLElement,
+  options: Record<string, unknown>,
+) => Promise<string> {
+  return async (node, captureOptions) => {
+    const { toPng: htmlToPng } = await import("html-to-image");
+    return htmlToPng(node, captureOptions);
+  };
+}
 
 export function createChromeFilter(): (node: HTMLElement) => boolean {
   return (node: HTMLElement) => {
@@ -128,12 +187,10 @@ export async function waitForFontsAndImages(
 
     if (typeof document !== "undefined" && document.fonts?.ready) {
       tasks.push(
-        document.fonts.ready.catch(
-          (error: unknown) => {
-            const detail = error instanceof Error ? error.message : String(error);
-            throw new ResourceWaitError(detail, "font");
-          },
-        ),
+        document.fonts.ready.catch((error: unknown) => {
+          const detail = error instanceof Error ? error.message : String(error);
+          throw new ResourceWaitError(detail, "font");
+        }),
       );
     }
 
@@ -193,7 +250,7 @@ function mapResourceError(slideIndex: number, error: unknown): PngCaptureFailure
 async function withCaptureTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  abortController: AbortController,
+  abortScope: CaptureAbortScope,
 ): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let timedOut = false;
@@ -213,7 +270,7 @@ async function withCaptureTimeout<T>(
       new Promise<T>((_, reject) => {
         timeoutId = setTimeout(() => {
           timedOut = true;
-          abortController.abort();
+          abortScope.controller.abort();
           reject(new CaptureError("Capture timeout", "timeout"));
         }, timeoutMs);
       }),
@@ -251,8 +308,7 @@ export async function captureSlidePng(
   const waitForResources = options.waitForResources ?? waitForFontsAndImages;
   const resourceTimeoutMs = options.resourceTimeoutMs ?? 5000;
   const captureTimeoutMs = options.captureTimeoutMs ?? 10000;
-  const abortController = options.captureAbortController ?? new AbortController();
-  const captureSignal = options.captureSignal ?? abortController.signal;
+  const abortScope = createCaptureAbortScope(options.captureSignal);
 
   try {
     await waitForResources(slideElement, resourceTimeoutMs);
@@ -260,31 +316,23 @@ export async function captureSlidePng(
     return mapResourceError(slideIndex, error);
   }
 
-  const toPng =
-    options.toPng ??
-    (async (node, captureOptions) => {
-      const { toPng: htmlToPng } = await import("html-to-image");
-      return htmlToPng(node, captureOptions);
-    });
-
-  const capturePromise = toPng(slideElement, {
+  const toPng = options.toPng ?? createDefaultToPngCapture();
+  const captureOptions = buildHtmlToImageCaptureOptions({
     width,
     height,
-    canvasWidth: width,
-    canvasHeight: height,
-    pixelRatio: 1,
-    backgroundColor: "#ffffff",
     filter,
-    signal: captureSignal,
+    signal: abortScope.signal,
+    fetchRequestInit: options.fetchRequestInit,
   });
 
+  const capturePromise = toPng(slideElement, captureOptions);
   capturePromise.catch(() => undefined);
 
   try {
     const dataUrl = await withCaptureTimeout(
       capturePromise,
       captureTimeoutMs,
-      abortController,
+      abortScope,
     );
 
     const blob = await dataUrlToBlob(dataUrl);

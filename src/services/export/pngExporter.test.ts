@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  buildHtmlToImageCaptureOptions,
   captureSlidePng,
+  createCaptureAbortScope,
   createChromeFilter,
   createSlideFilename,
   waitForFontsAndImages,
@@ -153,12 +155,38 @@ describe("captureSlidePng", () => {
     expect(rejectionObserver).toHaveBeenCalled();
   });
 
-  it("aborts capture signal on timeout when provided", async () => {
+  it("passes abort signal via fetchRequestInit without top-level signal", async () => {
     const slide = document.createElement("div");
-    const controller = new AbortController();
+    let capturedOptions: Record<string, unknown> | undefined;
+    const toPng = vi.fn(async (_node, options) => {
+      capturedOptions = options;
+      return "data:image/png;base64,abc";
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      blob: () => Promise.resolve(new Blob(["png"], { type: "image/png" })),
+    }) as typeof fetch;
+
+    await captureSlidePng(slide, 0, {
+      toPng,
+      waitForResources: async () => undefined,
+      fetchRequestInit: { credentials: "same-origin" },
+    });
+
+    expect(capturedOptions).toBeDefined();
+    expect(capturedOptions).not.toHaveProperty("signal");
+    const fetchInit = capturedOptions!.fetchRequestInit as RequestInit;
+    expect(fetchInit.credentials).toBe("same-origin");
+    expect(fetchInit.signal).toBeInstanceOf(AbortSignal);
+    expect(fetchInit.signal!.aborted).toBe(false);
+  });
+
+  it("aborts fetchRequestInit signal on capture timeout", async () => {
+    const slide = document.createElement("div");
+    let capturedSignal: AbortSignal | undefined;
     const toPng = vi.fn(
-      () =>
+      (_node, options) =>
         new Promise<string>((resolve) => {
+          capturedSignal = (options.fetchRequestInit as RequestInit).signal ?? undefined;
           setTimeout(() => resolve("data:image/png;base64,x"), 50);
         }),
     );
@@ -167,11 +195,78 @@ describe("captureSlidePng", () => {
       toPng,
       waitForResources: async () => undefined,
       captureTimeoutMs: 5,
-      captureAbortController: controller,
-      captureSignal: controller.signal,
     });
 
-    expect(controller.signal.aborted).toBe(true);
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal!.aborted).toBe(true);
+  });
+
+  it("propagates caller abort through fetchRequestInit signal", async () => {
+    const slide = document.createElement("div");
+    const caller = new AbortController();
+    let capturedSignal: AbortSignal | undefined;
+    const toPng = vi.fn(
+      (_node, options) =>
+        new Promise<string>((_resolve, reject) => {
+          capturedSignal = (options.fetchRequestInit as RequestInit).signal ?? undefined;
+          if (capturedSignal!.aborted) {
+            reject(new Error("aborted"));
+            return;
+          }
+          capturedSignal!.addEventListener(
+            "abort",
+            () => {
+              reject(new Error("aborted"));
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    const capturePromise = captureSlidePng(slide, 0, {
+      toPng,
+      waitForResources: async () => undefined,
+      captureTimeoutMs: 100,
+      captureSignal: caller.signal,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    caller.abort();
+    const result = await capturePromise;
+
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal!.aborted).toBe(true);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("buildHtmlToImageCaptureOptions", () => {
+  it("merges fetchRequestInit and sets signal", () => {
+    const scope = createCaptureAbortScope();
+    const options = buildHtmlToImageCaptureOptions({
+      width: 1920,
+      height: 1080,
+      filter: () => true,
+      signal: scope.signal,
+      fetchRequestInit: { cache: "no-cache" },
+    });
+
+    expect(options).not.toHaveProperty("signal");
+    expect(options.fetchRequestInit).toEqual({
+      cache: "no-cache",
+      signal: scope.signal,
+    });
+  });
+});
+
+describe("createCaptureAbortScope", () => {
+  it("links caller abort to effective controller", () => {
+    const caller = new AbortController();
+    const scope = createCaptureAbortScope(caller.signal);
+
+    expect(scope.signal.aborted).toBe(false);
+    caller.abort();
+    expect(scope.signal.aborted).toBe(true);
   });
 });
 

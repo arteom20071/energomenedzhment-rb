@@ -133,6 +133,7 @@ export function generateStandaloneHtmlFromResolved(presentation: Presentation): 
     .viewport { position: relative; width: ${CANVAS_WIDTH}px; height: ${CANVAS_HEIGHT}px; transform-origin: center center; }
     .slide { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease; transform: translateX(0) scale(1); }
     .slide.active { opacity: 1; pointer-events: auto; }
+    .slide.active.transition-none { opacity: 1; transition: none; transform: none; pointer-events: auto; }
     .slide.stage-enter.transition-fade { opacity: 0; transform: translateX(0) scale(1); }
     .slide.stage-enter.transition-fade.stage-active { opacity: 1; transform: translateX(0) scale(1); }
     .slide.stage-enter.transition-slide { opacity: 0; transform: translateX(100%); }
@@ -182,10 +183,14 @@ export function generateStandaloneHtmlFromResolved(presentation: Presentation): 
         var slide = slides[index];
         var transition = slide.getAttribute('data-transition') || 'fade';
         slides.forEach(function (item) {
-          item.classList.remove('active', 'stage-enter', 'stage-active', 'transition-fade', 'transition-slide', 'transition-zoom');
+          item.classList.remove('active', 'stage-enter', 'stage-active', 'transition-fade', 'transition-slide', 'transition-zoom', 'transition-none');
         });
+        if (transition === 'none') {
+          slide.classList.add('active', 'transition-none');
+          return;
+        }
         slide.classList.add('active', 'stage-enter');
-        if (transition === 'fade' || transition === 'none') slide.classList.add('transition-fade');
+        if (transition === 'fade') slide.classList.add('transition-fade');
         if (transition === 'slide') slide.classList.add('transition-slide');
         if (transition === 'zoom') slide.classList.add('transition-zoom');
         requestAnimationFrame(function () {

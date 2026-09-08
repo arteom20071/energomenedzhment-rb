@@ -198,5 +198,32 @@ describe("PresentationMode", () => {
 
     expect(document.querySelector("style")?.textContent).toContain("transition-fade");
     expect(document.querySelector("style")?.textContent).toContain("opacity: 0");
+    expect(document.querySelector(".presentation-slide.transition-fade.stage-enter")).toBeTruthy();
+  });
+
+  it("uses transition-none without stage-enter or animation frames", () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 1);
+
+    const presentation = createPresentation("None");
+    presentation.slides[0]!.transition = "none";
+
+    render(
+      <PresentationMode
+        presentation={presentation}
+        currentSlideIndex={0}
+        onExit={() => undefined}
+        requestFullscreen={async () => undefined}
+        exitFullscreen={async () => undefined}
+      />,
+    );
+
+    const slide = document.querySelector(".presentation-slide");
+    expect(slide?.classList.contains("transition-none")).toBe(true);
+    expect(slide?.classList.contains("transition-fade")).toBe(false);
+    expect(slide?.classList.contains("stage-enter")).toBe(false);
+    expect(document.querySelector("style")?.textContent).toContain(".presentation-slide.transition-none");
+    expect(rafSpy).not.toHaveBeenCalled();
+
+    rafSpy.mockRestore();
   });
 });

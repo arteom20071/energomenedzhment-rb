@@ -131,4 +131,32 @@ describe("css transition staging", () => {
     expect(html).toContain("scale(0.85)");
     expect(html).toContain("opacity: 0");
   });
+
+  it("uses transition-none without fade staging or double rAF", () => {
+    const presentation = createPresentation("No Transition");
+    presentation.slides[0]!.transition = "none";
+
+    const html = generateStandaloneHtmlFromResolved(presentation);
+    expect(html).toContain("transition-none");
+    expect(html).toContain(".slide.active.transition-none");
+    expect(html).toContain("transition: none");
+    expect(html).toContain("if (transition === 'none')");
+    expect(html).not.toMatch(/transition === 'fade' \|\| transition === 'none'/);
+  });
+
+  it("distinguishes fade from none in stageSlide", () => {
+    const fadePresentation = createPresentation("Fade Deck");
+    fadePresentation.slides[0]!.transition = "fade";
+    const fadeHtml = generateStandaloneHtmlFromResolved(fadePresentation);
+
+    const nonePresentation = createPresentation("None Deck");
+    nonePresentation.slides[0]!.transition = "none";
+    const noneHtml = generateStandaloneHtmlFromResolved(nonePresentation);
+
+    expect(fadeHtml).toContain("transition-fade");
+    expect(fadeHtml).toContain("requestAnimationFrame");
+    expect(noneHtml).toContain("transition-none");
+    expect(noneHtml).not.toMatch(/transition === 'fade' \|\| transition === 'none'/);
+    expect(noneHtml).toMatch(/if \(transition === 'none'\)[\s\S]*return;/);
+  });
 });

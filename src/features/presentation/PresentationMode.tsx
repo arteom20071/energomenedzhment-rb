@@ -126,11 +126,13 @@ function renderElement(element: SlideElement): ReactElement | null {
   }
 }
 
-function renderSlide(slide: Slide, transitionClass: string, slideIndex: number): ReactElement {
+function renderSlide(slide: Slide, slideIndex: number): ReactElement {
   const elements = [...slide.elements].sort((a, b) => a.zIndex - b.zIndex);
+  const isNone = slide.transition === "none";
+  const transitionClass = isNone ? "transition-none" : `transition-${slide.transition}`;
 
   const activateSlide = (node: HTMLDivElement | null) => {
-    if (!node) {
+    if (!node || isNone) {
       return;
     }
     node.classList.add("stage-enter");
@@ -145,7 +147,7 @@ function renderSlide(slide: Slide, transitionClass: string, slideIndex: number):
     <div
       key={slideIndex}
       ref={activateSlide}
-      className={`presentation-slide ${transitionClass} stage-enter`}
+      className={`presentation-slide ${transitionClass}${isNone ? "" : " stage-enter"}`}
       style={{
         position: "relative",
         width: CANVAS_WIDTH,
@@ -209,11 +211,6 @@ export function PresentationMode({
     );
   }
 
-  const transitionClass =
-    slide.transition === "none" || slide.transition === "fade"
-      ? "transition-fade"
-      : `transition-${slide.transition}`;
-
   return (
     <div
       ref={containerRef}
@@ -239,7 +236,7 @@ export function PresentationMode({
           transformOrigin: "center center",
         }}
       >
-        {renderSlide(slide, transitionClass, currentSlideIndex)}
+        {renderSlide(slide, currentSlideIndex)}
       </div>
       <button
         type="button"
@@ -261,6 +258,7 @@ export function PresentationMode({
       </button>
       <style>{`
         .presentation-slide { transition: opacity 0.4s ease, transform 0.4s ease; opacity: 1; }
+        .presentation-slide.transition-none { transition: none; opacity: 1; }
         .presentation-slide.stage-enter.transition-fade { opacity: 0; transform: translateX(0) scale(1); }
         .presentation-slide.stage-enter.transition-fade.stage-active { opacity: 1; transform: translateX(0) scale(1); }
         .presentation-slide.stage-enter.transition-slide { opacity: 0; transform: translateX(100%); }
