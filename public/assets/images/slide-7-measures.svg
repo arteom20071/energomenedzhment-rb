@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" fill="none">
+  <rect width="640" height="200" rx="14" fill="#F8FAFC"/>
+  <text x="24" y="32" fill="#0284C7" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1.6">PBP · ГРАДАЦИЯ МЕР</text>
+  <rect x="24" y="52" width="184" height="124" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="40" y="84" fill="#059669" font-family="Inter, Roboto, sans-serif" font-size="28" font-weight="800" text-anchor="start">≤ 1</text>
+  <text x="88" y="84" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start">год</text>
+  <text x="40" y="116" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="start">OPEX / zero-cost</text>
+  <text x="40" y="140" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">утечки · графики · уплотнения</text>
+  <rect x="224" y="52" width="184" height="124" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="240" y="84" fill="#0284C7" font-family="Inter, Roboto, sans-serif" font-size="28" font-weight="800" text-anchor="start">1–3</text>
+  <text x="320" y="84" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start">года</text>
+  <text x="240" y="116" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="start">ЧРП · АСУ ИТП</text>
+  <text x="240" y="140" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">среднезатратный CAPEX</text>
+  <rect x="424" y="52" width="192" height="124" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="440" y="84" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="28" font-weight="800" text-anchor="start">3–5</text>
+  <text x="530" y="84" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start">лет</text>
+  <text x="440" y="116" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="start">ВЭР · когенерация</text>
+  <text x="440" y="140" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">рекуперация · CAPEX</text>
+</svg>
