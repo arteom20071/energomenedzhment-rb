@@ -1,5 +1,7 @@
 import { Image, LayoutTemplate, Shapes, Sparkles, Type } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
+
+import { useRovingTabIndex } from "./useRovingTabIndex";
 
 export type ToolTabId = "ai" | "text" | "shapes" | "media" | "templates";
 
@@ -33,27 +35,52 @@ const panelByTab: Record<ToolTabId, keyof LeftToolSidebarProps> = {
   templates: "templatesPanel",
 };
 
+function getTabAccessibleName(label: string): string {
+  return label === "ИИ" ? "ИИ Создать" : label;
+}
+
 export function LeftToolSidebar(props: LeftToolSidebarProps) {
   const [activeTab, setActiveTab] = useState<ToolTabId>("ai");
+  const tabIds = useMemo(() => toolTabs.map((tab) => tab.id), []);
+  const { handleKeyDown, getTabProps } = useRovingTabIndex(tabIds, activeTab, "horizontal");
+
   const panelKey = panelByTab[activeTab];
   const activePanel = props[panelKey];
+
+  const onTablistKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const nextTab = handleKeyDown(event);
+    if (nextTab) {
+      setActiveTab(nextTab);
+    }
+  };
 
   return (
     <nav
       aria-label="Инструменты"
       className="flex w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-900"
     >
-      <div role="tablist" aria-label="Панели инструментов" className="flex border-b border-slate-800">
+      <div
+        role="tablist"
+        aria-label="Панели инструментов"
+        aria-orientation="horizontal"
+        className="flex border-b border-slate-800"
+        onKeyDown={onTablistKeyDown}
+      >
         {toolTabs.map(({ id, label, icon: Icon }) => {
           const selected = activeTab === id;
+          const tabProps = getTabProps(id);
+          const accessibleName = getTabAccessibleName(label);
+
           return (
             <button
               key={id}
               type="button"
               role="tab"
               aria-selected={selected}
-              aria-label={label === "ИИ" ? "ИИ Создать" : label}
-              title={label === "ИИ" ? "ИИ Создать" : label}
+              aria-label={accessibleName}
+              title={accessibleName}
+              tabIndex={tabProps.tabIndex}
+              onFocus={tabProps.onFocus}
               onClick={() => setActiveTab(id)}
               className={`flex flex-1 flex-col items-center gap-1 px-2 py-3 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-indigo-400 ${
                 selected

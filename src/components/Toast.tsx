@@ -3,7 +3,9 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -38,6 +40,17 @@ interface ToastProviderProps {
 
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const dismissTimersRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const timers = dismissTimersRef.current;
+    return () => {
+      for (const timerId of timers) {
+        window.clearTimeout(timerId);
+      }
+      timers.clear();
+    };
+  }, []);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -48,9 +61,11 @@ export function ToastProvider({ children }: ToastProviderProps) {
       const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setToasts([{ id, message, action }]);
 
-      window.setTimeout(() => {
+      const timerId = window.setTimeout(() => {
+        dismissTimersRef.current.delete(timerId);
         dismissToast(id);
       }, 5000);
+      dismissTimersRef.current.add(timerId);
     },
     [dismissToast],
   );

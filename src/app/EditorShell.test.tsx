@@ -145,6 +145,43 @@ describe("EditorShell", () => {
 
     expect(screen.getByText("Настройки слайда")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Переход слайда" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Анимация элемента" })).not.toBeInTheDocument();
+  });
+
+  it("shows element animation selector when an element is selected", () => {
+    act(() => {
+      useEditorStore.getState().addElement(
+        createTextElement(
+          useEditorStore.getState().presentation.slides[0]?.elements ?? [],
+          { animation: "fade-up" },
+        ),
+      );
+    });
+
+    renderShell();
+
+    const animationSelect = screen.getByRole("combobox", { name: "Анимация элемента" });
+    expect(animationSelect).toHaveValue("fade-up");
+  });
+
+  it("calls onElementAnimationChange when element animation changes", () => {
+    const onElementAnimationChange = vi.fn();
+
+    act(() => {
+      useEditorStore.getState().addElement(
+        createTextElement(
+          useEditorStore.getState().presentation.slides[0]?.elements ?? [],
+        ),
+      );
+    });
+
+    renderShell({ onElementAnimationChange });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Анимация элемента" }), {
+      target: { value: "bounce" },
+    });
+
+    expect(onElementAnimationChange).toHaveBeenCalledWith("bounce");
   });
 
   it("shows selected object slot when elements are selected", () => {

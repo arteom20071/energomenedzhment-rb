@@ -6,7 +6,7 @@ import {
   Sparkles,
   Undo2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import type { SaveStatus } from "../store/editorStore";
 import { ZOOM_MAX, ZOOM_MIN } from "../store/editorStore";
@@ -29,6 +29,7 @@ interface EditorHeaderProps {
   onExportPng?: () => void;
   onExportHtml?: () => void;
   onOpenShortcuts: () => void;
+  shortcutsTriggerRef?: RefObject<HTMLButtonElement | null>;
 }
 
 export function EditorHeader({
@@ -47,6 +48,7 @@ export function EditorHeader({
   onExportPng,
   onExportHtml,
   onOpenShortcuts,
+  shortcutsTriggerRef,
 }: EditorHeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -191,7 +193,11 @@ export function EditorHeader({
           <Play aria-hidden="true" size={18} />
         </IconButton>
 
-        <IconButton label="Горячие клавиши" onClick={onOpenShortcuts}>
+        <IconButton
+          ref={shortcutsTriggerRef}
+          label="Горячие клавиши"
+          onClick={onOpenShortcuts}
+        >
           <HelpCircle aria-hidden="true" size={18} />
         </IconButton>
       </div>

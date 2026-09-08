@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { ElementAnimation, SlideTransition } from "../domain/presentation";
 import {
@@ -32,7 +32,7 @@ export interface EditorShellProps {
   onExportHtml?: () => void;
   onPresent?: () => void;
   onTransitionChange?: (transition: SlideTransition) => void;
-  onAnimationChange?: (animation: ElementAnimation | undefined) => void;
+  onElementAnimationChange?: (animation: ElementAnimation | undefined) => void;
   /** Test-only override for mobile layout notice. */
   forceMobileLayout?: boolean;
 }
@@ -52,7 +52,7 @@ function EditorShellLayout({
   onExportHtml,
   onPresent,
   onTransitionChange,
-  onAnimationChange,
+  onElementAnimationChange,
   forceMobileLayout = false,
 }: EditorShellProps) {
   const title = useEditorStore((state) => state.presentation.title);
@@ -62,6 +62,9 @@ function EditorShellLayout({
   const activeSlide = useEditorStore((state) =>
     state.presentation.slides.find((slide) => slide.id === state.activeSlideId),
   );
+  const selectedElement = activeSlide?.elements.find((element) =>
+    selectedElementIds.includes(element.id),
+  );
 
   const renamePresentation = useEditorStore((state) => state.renamePresentation);
   const setZoom = useEditorStore((state) => state.setZoom);
@@ -70,6 +73,7 @@ function EditorShellLayout({
   const canRedo = useEditorTemporalStore((state) => state.futureStates.length > 0);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const shortcutsTriggerRef = useRef<HTMLButtonElement>(null);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (isEditableTarget(event.target)) {
@@ -109,6 +113,7 @@ function EditorShellLayout({
         onExportPng={onExportPng}
         onExportHtml={onExportHtml}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+        shortcutsTriggerRef={shortcutsTriggerRef}
       />
 
       <div className="grid min-h-0 grid-cols-[auto_1fr_auto]">
@@ -135,10 +140,10 @@ function EditorShellLayout({
         <RightInspector
           hasSelection={selectedElementIds.length > 0}
           transition={activeSlide?.transition ?? "fade"}
-          animation={undefined}
+          elementAnimation={selectedElement?.animation}
           selectedObjectPanel={selectedObjectPanel}
           onTransitionChange={onTransitionChange}
-          onAnimationChange={onAnimationChange}
+          onElementAnimationChange={onElementAnimationChange}
         />
       </div>
 
@@ -147,6 +152,7 @@ function EditorShellLayout({
       <KeyboardShortcutsDialog
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
+        triggerRef={shortcutsTriggerRef}
       />
     </div>
   );

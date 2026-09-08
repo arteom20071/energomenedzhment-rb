@@ -1,4 +1,4 @@
-import { Dialog } from "./ui/IconButton";
+import { Dialog } from "./ui/Dialog";
 
 const shortcuts = [
   { keys: "Ctrl/Cmd + Z", action: "Отменить" },
@@ -12,11 +12,16 @@ const shortcuts = [
 interface KeyboardShortcutsDialogProps {
   open: boolean;
   onClose: () => void;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function KeyboardShortcutsDialog({ open, onClose }: KeyboardShortcutsDialogProps) {
+export function KeyboardShortcutsDialog({
+  open,
+  onClose,
+  triggerRef,
+}: KeyboardShortcutsDialogProps) {
   return (
-    <Dialog title="Горячие клавиши" open={open} onClose={onClose}>
+    <Dialog title="Горячие клавиши" open={open} onClose={onClose} triggerRef={triggerRef}>
       <ul className="space-y-2 text-sm text-slate-300">
         {shortcuts.map(({ keys, action }) => (
           <li key={keys} className="flex items-center justify-between gap-4">

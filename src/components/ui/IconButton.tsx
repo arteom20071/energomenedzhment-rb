@@ -1,5 +1,4 @@
-import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 interface IconButtonProps {
   label: string;
@@ -10,16 +9,20 @@ interface IconButtonProps {
   className?: string;
 }
 
-export function IconButton({
-  label,
-  tooltip,
-  onClick,
-  disabled = false,
-  children,
-  className = "",
-}: IconButtonProps) {
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
+  {
+    label,
+    tooltip,
+    onClick,
+    disabled = false,
+    children,
+    className = "",
+  },
+  ref,
+) {
   return (
     <button
+      ref={ref}
       type="button"
       aria-label={label}
       title={tooltip ?? label}
@@ -30,46 +33,4 @@ export function IconButton({
       {children}
     </button>
   );
-}
-
-interface DialogProps {
-  title: string;
-  open: boolean;
-  onClose: () => void;
-  children: ReactNode;
-}
-
-export function Dialog({ title, open, onClose, children }: DialogProps) {
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
-      onClick={onClose}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          onClose();
-        }
-      }}
-      role="presentation"
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-          <IconButton label="Закрыть" onClick={onClose}>
-            <X aria-hidden="true" size={18} />
-          </IconButton>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
+});
