@@ -8,6 +8,7 @@ import {
   parseMoveableDrag,
   parseMoveableResize,
   parseMoveableRotate,
+  normalizeMoveableEvent,
 } from "./transforms";
 
 function element(overrides: Partial<SlideElement> = {}): SlideElement {
@@ -68,11 +69,11 @@ describe("transforms", () => {
 
   describe("parseMoveableRotate", () => {
     it.each([
-      { scale: 0.5, rotate: 10, translate: [4, 0], expectedRotation: 25, expectedX: 108 },
-      { scale: 1, rotate: 10, translate: [0, 0], expectedRotation: 25, expectedX: 100 },
-      { scale: 2, rotate: 5, translate: [10, 0], expectedRotation: 20, expectedX: 105 },
+      { scale: 0.5, rotate: 25, translate: [4, 0], expectedRotation: 25, expectedX: 108 },
+      { scale: 1, rotate: 25, translate: [0, 0], expectedRotation: 25, expectedX: 100 },
+      { scale: 2, rotate: 20, translate: [10, 0], expectedRotation: 20, expectedX: 105 },
     ])(
-      "applies rotation delta and optional drag translate at zoom $scale",
+      "uses moveable rotate as absolute angle at zoom $scale",
       ({ scale, rotate, translate, expectedRotation, expectedX }) => {
         const parsed = parseMoveableRotate({ rotate, translate }, scale, base);
         expect(parsed.rotation).toBe(expectedRotation);
@@ -80,6 +81,34 @@ describe("transforms", () => {
         expect(parsed.y).toBe(200);
       },
     );
+
+    it("does not add reported rotate onto an already rotated element", () => {
+      const rotatedBase = { ...base, rotation: 30 };
+      const parsed = parseMoveableRotate({ rotate: 45, translate: [0, 0] }, 1, rotatedBase);
+      expect(parsed.rotation).toBe(45);
+    });
+
+    it("supports dist as gesture delta when rotate is absent", () => {
+      const rotatedBase = { ...base, rotation: 30 };
+      const parsed = parseMoveableRotate({ dist: 15, translate: [0, 0] }, 1, rotatedBase);
+      expect(parsed.rotation).toBe(45);
+    });
+  });
+
+  it("normalizes moveable drag translate from nested drag payload", () => {
+    expect(
+      normalizeMoveableEvent({
+        drag: { translate: [12, -4] },
+        width: 180,
+        height: 90,
+        rotate: 40,
+      }),
+    ).toEqual({
+      translate: [12, -4],
+      width: 180,
+      height: 90,
+      rotate: 40,
+    });
   });
 
   it("applies transient preview without mutating source elements", () => {

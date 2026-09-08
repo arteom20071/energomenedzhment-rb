@@ -16,12 +16,15 @@ import {
   type SnapGuide,
 } from "./snapping";
 import {
+  applyGroupDragSnap,
   buildTransformCommitUpdates,
   directionFromMoveable,
+  normalizeMoveableEvent,
   parseMoveableDrag,
   parseMoveableResize,
   parseMoveableRotate,
   type ElementTransform,
+  type RawMoveableEvent,
 } from "./transforms";
 
 type GestureKind = "drag" | "resize" | "rotate" | null;
@@ -233,14 +236,42 @@ export function SlideCanvas({
 
   const updateGroupPreview = useCallback(
     (
-      events: Array<{
-        target: HTMLElement | SVGElement;
-        translate?: number[];
-        rotate?: number;
-        width?: number;
-        height?: number;
-      }>,
+      events: Array<
+        {
+          target: HTMLElement | SVGElement;
+        } & RawMoveableEvent
+      >,
     ) => {
+      const gesture = gestureStartRef.current;
+      if (!gesture) {
+        return;
+      }
+
+      if (gesture.kind === "drag") {
+        const firstEvent = events[0];
+        if (!firstEvent) {
+          return;
+        }
+
+        const normalized = normalizeMoveableEvent(firstEvent);
+        const { previews, guides } = applyGroupDragSnap(
+          gesture.elements,
+          normalized.translate ?? [0, 0],
+          effectiveScale,
+          (bounds) =>
+            computeSnap(
+              bounds,
+              slide.elements,
+              { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+              snapThreshold,
+              selectedIds,
+            ),
+        );
+        setGuides(guides);
+        setPreviewSnapshot(previews);
+        return;
+      }
+
       const snapshot = new Map(previewRef.current);
       for (const event of events) {
         const elementId = readElementId(event.target);
@@ -248,24 +279,18 @@ export function SlideCanvas({
           continue;
         }
 
-        const gesture = gestureStartRef.current;
-        const start = gesture?.elements.get(elementId);
-        if (!gesture || !start) {
+        const start = gesture.elements.get(elementId);
+        if (!start) {
           continue;
         }
 
+        const normalized = normalizeMoveableEvent(event);
         let next: ElementTransform = { ...start };
 
-        if (gesture.kind === "drag") {
+        if (gesture.kind === "resize") {
           next = {
             ...next,
-            ...parseMoveableDrag(event, effectiveScale, start),
-          };
-          next = applyDragSnap(next);
-        } else if (gesture.kind === "resize") {
-          next = {
-            ...next,
-            ...parseMoveableResize(event, effectiveScale, start),
+            ...parseMoveableResize(normalized, effectiveScale, start),
           };
           if (gesture.direction) {
             next = applyResizeSnap(next, gesture.direction);
@@ -273,7 +298,7 @@ export function SlideCanvas({
         } else if (gesture.kind === "rotate") {
           next = {
             ...next,
-            ...parseMoveableRotate(event, effectiveScale, start),
+            ...parseMoveableRotate(normalized, effectiveScale, start),
           };
         }
 
@@ -282,7 +307,7 @@ export function SlideCanvas({
 
       setPreviewSnapshot(snapshot);
     },
-    [applyDragSnap, applyResizeSnap, effectiveScale, setPreviewSnapshot],
+    [applyResizeSnap, effectiveScale, selectedIds, setPreviewSnapshot, slide.elements, snapThreshold],
   );
 
   const commitGesture = useCallback(() => {

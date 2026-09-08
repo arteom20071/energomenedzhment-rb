@@ -157,9 +157,81 @@ function emitGroupDrag() {
   handlers.onDragGroupEnd?.();
 }
 
-function emitGroupResize() {
+function emitGroupResize(direction: "se" | "nw" | "w" | "n" = "se") {
+  const configs = {
+    se: {
+      direction: "se" as const,
+      events: [
+        {
+          target: target("el-a"),
+          width: 220,
+          height: 90,
+          drag: { translate: [0, 0] },
+        },
+        {
+          target: target("el-b"),
+          width: 220,
+          height: 90,
+          drag: { translate: [0, 0] },
+        },
+      ],
+    },
+    nw: {
+      direction: "nw" as const,
+      events: [
+        {
+          target: target("el-a"),
+          width: 180,
+          height: 70,
+          drag: { translate: [-20, -10] },
+        },
+        {
+          target: target("el-b"),
+          width: 180,
+          height: 70,
+          drag: { translate: [-20, -10] },
+        },
+      ],
+    },
+    w: {
+      direction: "w" as const,
+      events: [
+        {
+          target: target("el-a"),
+          width: 180,
+          height: 80,
+          drag: { translate: [-20, 0] },
+        },
+        {
+          target: target("el-b"),
+          width: 180,
+          height: 80,
+          drag: { translate: [-20, 0] },
+        },
+      ],
+    },
+    n: {
+      direction: "n" as const,
+      events: [
+        {
+          target: target("el-a"),
+          width: 200,
+          height: 60,
+          drag: { translate: [0, -20] },
+        },
+        {
+          target: target("el-b"),
+          width: 200,
+          height: 60,
+          drag: { translate: [0, -20] },
+        },
+      ],
+    },
+  };
+
+  const config = configs[direction];
   const handlers = capturedMoveableHandlers as {
-    onResizeGroupStart?: (event: { direction: string }) => void;
+    onResizeGroupStart?: (event: { direction: string | number[] }) => void;
     onResizeGroup?: (event: {
       events: Array<{
         target: HTMLElement;
@@ -170,23 +242,8 @@ function emitGroupResize() {
     }) => void;
     onResizeGroupEnd?: () => void;
   };
-  handlers.onResizeGroupStart?.({ direction: "se" });
-  handlers.onResizeGroup?.({
-    events: [
-      {
-        target: target("el-a"),
-        width: 220,
-        height: 90,
-        drag: { translate: [0, 0] },
-      },
-      {
-        target: target("el-b"),
-        width: 220,
-        height: 90,
-        drag: { translate: [0, 0] },
-      },
-    ],
-  });
+  handlers.onResizeGroupStart?.({ direction: config.direction });
+  handlers.onResizeGroup?.({ events: config.events });
   handlers.onResizeGroupEnd?.();
 }
 
@@ -205,8 +262,8 @@ function emitGroupRotate() {
   handlers.onRotateGroupStart?.();
   handlers.onRotateGroup?.({
     events: [
-      { target: target("el-a"), rotate: 12, drag: { translate: [0, 0] } },
-      { target: target("el-b"), rotate: 12, drag: { translate: [0, 0] } },
+      { target: target("el-a"), rotate: 12, drag: { translate: [10, 5] } },
+      { target: target("el-b"), rotate: 12, drag: { translate: [10, 5] } },
     ],
   });
   handlers.onRotateGroupEnd?.();
@@ -370,11 +427,85 @@ describe("SlideCanvas", () => {
       width: 220,
       height: 90,
       rotation: 12,
+      x: 110,
+      y: 105,
     });
     expect(elements.find((el) => el.id === "el-b")).toMatchObject({
       width: 220,
       height: 90,
       rotation: 12,
+      x: 410,
+      y: 205,
+    });
+  });
+
+  it("group west/north resize applies drag.translate to move x/y", async () => {
+    const store = buildStore();
+    store.getState().setSelection(["el-a", "el-b"]);
+    const commitSpy = vi.spyOn(store.getState(), "commitElementTransforms");
+
+    render(<CanvasHarness store={store} />);
+    emitGroupResize("w");
+
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(1));
+    const elements = store.getState().presentation.slides[0]!.elements;
+    expect(elements.find((el) => el.id === "el-a")).toMatchObject({ x: 80, width: 180 });
+    expect(elements.find((el) => el.id === "el-b")).toMatchObject({ x: 380, width: 180 });
+
+    emitGroupResize("n");
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(2));
+    const afterNorth = store.getState().presentation.slides[0]!.elements;
+    expect(afterNorth.find((el) => el.id === "el-a")).toMatchObject({ y: 80, height: 60 });
+    expect(afterNorth.find((el) => el.id === "el-b")).toMatchObject({ y: 180, height: 60 });
+  });
+
+  it("preserves relative spacing when group drag snaps once near a guide", async () => {
+    const store = buildStore();
+    const slide = store.getState().presentation.slides[0]!;
+    slide.elements = [
+      createTextElement([], {
+        id: "el-a",
+        x: 906,
+        y: 100,
+        width: 100,
+        height: 80,
+        content: "A",
+      }),
+      createTextElement([], {
+        id: "el-b",
+        x: 1206,
+        y: 100,
+        width: 100,
+        height: 80,
+        content: "B",
+      }),
+    ];
+    store.getState().setSelection(["el-a", "el-b"]);
+
+    render(<CanvasHarness store={store} />);
+
+    const handlers = capturedMoveableHandlers as {
+      onDragGroupStart?: () => void;
+      onDragGroup?: (event: {
+        events: Array<{ target: HTMLElement; translate: number[] }>;
+      }) => void;
+      onDragGroupEnd?: () => void;
+    };
+    handlers.onDragGroupStart?.();
+    handlers.onDragGroup?.({
+      events: [
+        { target: target("el-a"), translate: [8, 0] },
+        { target: target("el-b"), translate: [8, 0] },
+      ],
+    });
+    handlers.onDragGroupEnd?.();
+
+    await waitFor(() => {
+      const elements = store.getState().presentation.slides[0]!.elements;
+      const a = elements.find((el) => el.id === "el-a")!;
+      const b = elements.find((el) => el.id === "el-b")!;
+      expect(b.x - a.x).toBe(300);
+      expect(a.x).toBe(910);
     });
   });
 
@@ -414,6 +545,7 @@ describe("SlideCanvas", () => {
     const editorAgain = screen.getByRole("textbox");
     editorAgain.textContent = "Discarded";
     fireEvent.keyDown(editorAgain, { key: "Escape" });
+    fireEvent.blur(editorAgain);
     expect(
       store.getState().presentation.slides[0]!.elements.find((el) => el.id === "el-a")?.content,
     ).toBe("Updated");

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SlideElement } from "../../domain/presentation";
+import { pointerToLocalFocalPercent } from "./cropUtils";
 
 export interface CropPreviewStyles {
   objectPosition: string;
@@ -190,12 +191,15 @@ export function ImageCropOverlay({
 
           const onMove = (moveEvent: PointerEvent) => {
             const rect = frame.getBoundingClientRect();
-            const x = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-            const y = ((moveEvent.clientY - rect.top) / rect.height) * 100;
-            const next = {
-              x: Math.min(100, Math.max(0, x)),
-              y: Math.min(100, Math.max(0, y)),
-            };
+            const next = pointerToLocalFocalPercent({
+              clientX: moveEvent.clientX,
+              clientY: moveEvent.clientY,
+              centerX: rect.left + rect.width / 2,
+              centerY: rect.top + rect.height / 2,
+              width: element.width * scale,
+              height: element.height * scale,
+              rotationDegrees: element.rotation,
+            });
             setFocal(next);
             publishPreview(next, cropScale);
           };

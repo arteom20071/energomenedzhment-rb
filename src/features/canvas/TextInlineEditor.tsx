@@ -16,6 +16,7 @@ export function TextInlineEditor({
   onCancel,
 }: TextInlineEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const cancelledRef = useRef(false);
   const [initialContent] = useState(element.content ?? "");
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function TextInlineEditor({
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
+          cancelledRef.current = true;
           onCancel();
         }
         if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
@@ -65,6 +67,10 @@ export function TextInlineEditor({
         event.stopPropagation();
       }}
       onBlur={() => {
+        if (cancelledRef.current) {
+          cancelledRef.current = false;
+          return;
+        }
         onCommit(editorRef.current?.textContent ?? "");
       }}
     >

@@ -2,6 +2,7 @@ import type { ElementUpdate } from "../../store/editorStore";
 import type { SlideElement } from "../../domain/presentation";
 
 import { viewportDeltaToLogical } from "./coordinates";
+import type { ElementBounds, SnapGuide } from "./snapping";
 
 export type ResizeDirection = "n" | "s" | "e" | "w" | "nw" | "ne" | "sw" | "se";
 
@@ -62,9 +63,27 @@ export interface MoveableResizeEvent extends MoveableTranslateEvent {
 
 export interface MoveableRotateEvent extends MoveableTranslateEvent {
   rotate?: number;
+  rotation?: number;
+  dist?: number;
 }
 
+export interface RawMoveableEvent extends MoveableResizeEvent, MoveableRotateEvent {
+  drag?: { translate?: number[] };
+}
+
+export type NormalizedMoveableEvent = MoveableResizeEvent & MoveableRotateEvent;
+
 export type TransformBase = Pick<SlideElement, "x" | "y" | "width" | "height" | "rotation">;
+
+export function normalizeMoveableEvent(event: RawMoveableEvent): NormalizedMoveableEvent {
+  return {
+    translate: event.drag?.translate ?? event.translate,
+    rotate: event.rotate ?? event.rotation,
+    dist: event.dist,
+    width: event.width,
+    height: event.height,
+  };
+}
 
 function applyTranslate(
   base: TransformBase,
@@ -110,10 +129,17 @@ export function parseMoveableRotate(
   base: TransformBase,
 ): Pick<ElementTransform, "x" | "y" | "rotation"> {
   const position = applyTranslate(base, event.translate, effectiveScale);
+  let rotation = base.rotation;
+
+  if (event.rotate !== undefined) {
+    rotation = event.rotate;
+  } else if (event.dist !== undefined) {
+    rotation = base.rotation + event.dist;
+  }
 
   return {
     ...position,
-    rotation: base.rotation + (event.rotate ?? 0),
+    rotation,
   };
 }
 
@@ -135,7 +161,7 @@ export function parseMoveableTransform(
     Object.assign(result, parseMoveableResize(event, effectiveScale, base));
   }
 
-  if (event.rotate !== undefined) {
+  if (event.rotate !== undefined || event.dist !== undefined) {
     Object.assign(result, parseMoveableRotate(event, effectiveScale, base));
   }
 
@@ -217,4 +243,96 @@ export function applyGroupTranslateDelta(
   }
 
   return previews;
+}
+
+export function boundsFromTransforms(transforms: Iterable<ElementTransform>): ElementBounds {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const transform of transforms) {
+    minX = Math.min(minX, transform.x);
+    minY = Math.min(minY, transform.y);
+    maxX = Math.max(maxX, transform.x + transform.width);
+    maxY = Math.max(maxY, transform.y + transform.height);
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+export function applyGroupBoundsDelta(
+  previews: Map<string, ElementTransform>,
+  deltaX: number,
+  deltaY: number,
+): Map<string, ElementTransform> {
+  const next = new Map<string, ElementTransform>();
+  for (const [id, preview] of previews.entries()) {
+    next.set(id, {
+      ...preview,
+      x: preview.x + deltaX,
+      y: preview.y + deltaY,
+    });
+  }
+  return next;
+}
+
+export interface GroupDragSnapResult {
+  previews: Map<string, ElementTransform>;
+  guides: SnapGuide[];
+}
+
+export function applyGroupDragSnap(
+  starts: Map<string, ElementTransform>,
+  translate: number[],
+  effectiveScale: number,
+  snapBounds: (bounds: ElementBounds) => ElementBounds & { guides: SnapGuide[] },
+): GroupDragSnapResult {
+  const translated = applyGroupTranslateDelta(starts, translate, effectiveScale);
+
+  let deltaX = 0;
+  let deltaY = 0;
+  let bestDistanceX = Number.POSITIVE_INFINITY;
+  let bestDistanceY = Number.POSITIVE_INFINITY;
+  const guides: SnapGuide[] = [];
+
+  for (const preview of translated.values()) {
+    const bounds = {
+      x: preview.x,
+      y: preview.y,
+      width: preview.width,
+      height: preview.height,
+    };
+    const snapped = snapBounds(bounds);
+    const snapDeltaX = snapped.x - bounds.x;
+    const snapDeltaY = snapped.y - bounds.y;
+
+    if (snapDeltaX !== 0 && Math.abs(snapDeltaX) < bestDistanceX) {
+      bestDistanceX = Math.abs(snapDeltaX);
+      deltaX = snapDeltaX;
+      const guide = snapped.guides.find((item) => item.orientation === "vertical");
+      if (guide) {
+        guides.push(guide);
+      }
+    }
+
+    if (snapDeltaY !== 0 && Math.abs(snapDeltaY) < bestDistanceY) {
+      bestDistanceY = Math.abs(snapDeltaY);
+      deltaY = snapDeltaY;
+      const guide = snapped.guides.find((item) => item.orientation === "horizontal");
+      if (guide) {
+        guides.push(guide);
+      }
+    }
+  }
+
+  return {
+    previews: applyGroupBoundsDelta(translated, deltaX, deltaY),
+    guides,
+  };
 }
