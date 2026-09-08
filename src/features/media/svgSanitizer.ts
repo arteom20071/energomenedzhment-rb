@@ -96,10 +96,10 @@ const TAG_ATTRIBUTES: Record<string, readonly string[]> = {
   stop: ["offset", "stop-color", "stop-opacity"],
 };
 
-const POSITIVE_DIMENSION_PATTERN =
+const EXPLICIT_DIMENSION_PATTERN =
   /^(?:\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)(?:px)?$/;
 
-const SIGNED_NUMERIC_PATTERN =
+const UNITLESS_NUMBER_PATTERN =
   /^-?(?:\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)$/;
 
 const UNSAFE_VALUE_PATTERN =
@@ -143,9 +143,9 @@ function preflightSource(source: string): string | null {
   return null;
 }
 
-function parsePositiveDimension(raw: string): number | null {
+function parseExplicitDimension(raw: string): number | null {
   const trimmed = raw.trim();
-  if (!POSITIVE_DIMENSION_PATTERN.test(trimmed)) {
+  if (!EXPLICIT_DIMENSION_PATTERN.test(trimmed)) {
     return null;
   }
 
@@ -158,9 +158,9 @@ function parsePositiveDimension(raw: string): number | null {
   return value;
 }
 
-function parseSignedNumeric(raw: string): number | null {
+function parseUnitlessNumber(raw: string): number | null {
   const trimmed = raw.trim();
-  if (!SIGNED_NUMERIC_PATTERN.test(trimmed)) {
+  if (!UNITLESS_NUMBER_PATTERN.test(trimmed)) {
     return null;
   }
 
@@ -168,11 +168,20 @@ function parseSignedNumeric(raw: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+function parsePositiveUnitlessNumber(raw: string): number | null {
+  const value = parseUnitlessNumber(raw);
+  if (value === null || value <= 0) {
+    return null;
+  }
+
+  return value;
+}
+
 function readSvgDimensions(
   root: Element,
 ): { width: number; height: number } | { error: string } {
-  const width = parsePositiveDimension(root.getAttribute("width") ?? "");
-  const height = parsePositiveDimension(root.getAttribute("height") ?? "");
+  const width = parseExplicitDimension(root.getAttribute("width") ?? "");
+  const height = parseExplicitDimension(root.getAttribute("height") ?? "");
 
   if (width !== null && height !== null) {
     return { width, height };
@@ -182,10 +191,10 @@ function readSvgDimensions(
   if (viewBox) {
     const parts = viewBox.trim().split(/[\s,]+/);
     if (parts.length === 4) {
-      const minX = parseSignedNumeric(parts[0] ?? "");
-      const minY = parseSignedNumeric(parts[1] ?? "");
-      const viewBoxWidth = parsePositiveDimension(parts[2] ?? "");
-      const viewBoxHeight = parsePositiveDimension(parts[3] ?? "");
+      const minX = parseUnitlessNumber(parts[0] ?? "");
+      const minY = parseUnitlessNumber(parts[1] ?? "");
+      const viewBoxWidth = parsePositiveUnitlessNumber(parts[2] ?? "");
+      const viewBoxHeight = parsePositiveUnitlessNumber(parts[3] ?? "");
 
       if (
         minX !== null &&

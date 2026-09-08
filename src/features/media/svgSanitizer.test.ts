@@ -89,6 +89,15 @@ describe("sanitizeSvg allowlist boundary", () => {
     }
   });
 
+  it("rejects viewBox tokens with px suffix", () => {
+    const svg = `<svg xmlns="${SVG_NS}" viewBox="0 0 100px 100"><rect width="10" height="10"/></svg>`;
+    const result = sanitizeSvg(svg);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/размер|viewBox/i);
+    }
+  });
+
   it("rejects dimension suffix garbage", () => {
     const svg = `<svg xmlns="${SVG_NS}" width="100px2" height="50"><rect width="10" height="10"/></svg>`;
     expect(sanitizeSvg(svg).success).toBe(false);

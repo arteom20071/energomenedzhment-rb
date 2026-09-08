@@ -38,13 +38,34 @@ describe("mediaAssetSchema", () => {
     expect(() => parseMediaAsset({ ...validAsset, width: 0 })).toThrow();
   });
 
-  it("requires strict ISO datetime for createdAt", () => {
+  it("requires canonical UTC ISO datetime for createdAt", () => {
     expect(() =>
       parseMediaAsset({ ...validAsset, createdAt: "2026-01-01" }),
     ).toThrow();
     expect(() =>
-      parseMediaAsset({ ...validAsset, createdAt: "not-a-date" }),
+      parseMediaAsset({ ...validAsset, createdAt: "2026-01-01T00:00:00Z" }),
     ).toThrow();
+    expect(() =>
+      parseMediaAsset({ ...validAsset, createdAt: "2026-01-01T00:00:00.000+00:00" }),
+    ).toThrow();
+  });
+
+  it("rejects impossible calendar dates even if regex matches", () => {
+    expect(() =>
+      parseMediaAsset({ ...validAsset, createdAt: "2026-02-30T00:00:00.000Z" }),
+    ).toThrow();
+    expect(() =>
+      parseMediaAsset({ ...validAsset, createdAt: "2021-02-29T00:00:00.000Z" }),
+    ).toThrow();
+  });
+
+  it("accepts valid leap-day UTC timestamps", () => {
+    expect(
+      parseMediaAsset({ ...validAsset, createdAt: "2020-02-29T12:00:00.000Z" }),
+    ).toEqual({
+      ...validAsset,
+      createdAt: "2020-02-29T12:00:00.000Z",
+    });
   });
 
   it("validates repository list payloads", () => {

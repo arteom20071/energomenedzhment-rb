@@ -55,6 +55,7 @@ export function MediaGrid({
   const generationRef = useRef(0);
   const deleteGenerationRef = useRef(0);
   const mountedRef = useRef(true);
+  const repositoryRef = useRef(repository);
   const activePreviewsRef = useRef<ActivePreviewOwnership>({
     repository,
     acquired: [],
@@ -63,10 +64,11 @@ export function MediaGrid({
 
   useEffect(() => {
     mountedRef.current = true;
+    repositoryRef.current = repository;
     return () => {
       mountedRef.current = false;
     };
-  }, []);
+  }, [repository]);
 
   useEffect(() => {
     const loadRepository = repository;
@@ -82,27 +84,37 @@ export function MediaGrid({
 
     void releaseAcquiredPreviews(previousActive.repository, previousActive.acquired);
 
+    const isLoadStillActive = () =>
+      mountedRef.current && loadGeneration === generationRef.current;
+
     async function releaseLocalAcquired(): Promise<void> {
       const pending = localAcquired.splice(0, localAcquired.length);
       await releaseAcquiredPreviews(loadRepository, pending);
     }
 
+    async function releasePreviewIfStale(
+      assetId: string,
+      previewUrl: string,
+    ): Promise<void> {
+      await releaseAcquiredPreviews(loadRepository, [{ assetId, url: previewUrl }]);
+    }
+
     async function loadAssets() {
-      if (mountedRef.current && loadGeneration === generationRef.current) {
+      if (isLoadStillActive()) {
         setLoading(true);
         setError(null);
       }
 
       try {
         const rawAssets = await loadRepository.list();
-        if (loadGeneration !== generationRef.current) {
+        if (!isLoadStillActive()) {
           await releaseLocalAcquired();
           return;
         }
 
         const parsedAssets = safeParseMediaAssets(rawAssets);
         if (!parsedAssets.success) {
-          if (mountedRef.current && loadGeneration === generationRef.current) {
+          if (isLoadStillActive()) {
             setError(parsedAssets.error);
             setItems([]);
             setLoading(false);
@@ -113,7 +125,7 @@ export function MediaGrid({
 
         const previews: AssetPreview[] = [];
         for (const asset of parsedAssets.data) {
-          if (loadGeneration !== generationRef.current) {
+          if (!isLoadStillActive()) {
             await releaseLocalAcquired();
             return;
           }
@@ -122,17 +134,15 @@ export function MediaGrid({
           try {
             previewUrl = await loadRepository.getPreviewUrl(asset.id);
           } catch {
-            if (mountedRef.current && loadGeneration === generationRef.current) {
+            if (isLoadStillActive()) {
               setError(`Не удалось получить предпросмотр для «${asset.filename}».`);
             }
             continue;
           }
 
-          if (loadGeneration !== generationRef.current) {
+          if (!isLoadStillActive()) {
             if (previewUrl) {
-              await releaseAcquiredPreviews(loadRepository, [
-                { assetId: asset.id, url: previewUrl },
-              ]);
+              await releasePreviewIfStale(asset.id, previewUrl);
             }
             await releaseLocalAcquired();
             return;
@@ -144,7 +154,7 @@ export function MediaGrid({
           previews.push({ asset, previewUrl });
         }
 
-        if (loadGeneration !== generationRef.current) {
+        if (!isLoadStillActive()) {
           await releaseLocalAcquired();
           return;
         }
@@ -156,13 +166,13 @@ export function MediaGrid({
         };
         localAcquired.length = 0;
 
-        if (mountedRef.current && loadGeneration === generationRef.current) {
+        if (isLoadStillActive()) {
           setItems(previews);
           setLoading(false);
         }
       } catch {
         await releaseLocalAcquired();
-        if (mountedRef.current && loadGeneration === generationRef.current) {
+        if (isLoadStillActive()) {
           setError("Не удалось загрузить медиатеку.");
           setItems([]);
           setLoading(false);
@@ -173,6 +183,8 @@ export function MediaGrid({
     void loadAssets();
 
     return () => {
+      generationRef.current += 1;
+
       void (async () => {
         await releaseLocalAcquired();
         const active = activePreviewsRef.current;
@@ -192,7 +204,7 @@ export function MediaGrid({
 
   const handleDelete = async (asset: MediaAsset, previewUrl: string | null) => {
     const deleteGeneration = ++deleteGenerationRef.current;
-    const deleteRepository = repository;
+    const deleteRepository = repositoryRef.current;
 
     if (mountedRef.current && deleteGeneration === deleteGenerationRef.current) {
       setError(null);
@@ -204,7 +216,7 @@ export function MediaGrid({
       if (
         mountedRef.current &&
         deleteGeneration === deleteGenerationRef.current &&
-        deleteRepository === repository
+        deleteRepository === repositoryRef.current
       ) {
         setError(`Не удалось удалить «${asset.filename}».`);
       }
@@ -214,7 +226,7 @@ export function MediaGrid({
     if (
       !mountedRef.current ||
       deleteGeneration !== deleteGenerationRef.current ||
-      deleteRepository !== repository
+      deleteRepository !== repositoryRef.current
     ) {
       return;
     }
@@ -236,7 +248,7 @@ export function MediaGrid({
     if (
       !mountedRef.current ||
       deleteGeneration !== deleteGenerationRef.current ||
-      deleteRepository !== repository
+      deleteRepository !== repositoryRef.current
     ) {
       return;
     }

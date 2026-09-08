@@ -72,6 +72,107 @@ describe("MediaGrid", () => {
     });
   });
 
+  it("releases deferred preview exactly once after unmount", async () => {
+    let resolvePreview: (value: string) => void = () => undefined;
+    const previewPromise = new Promise<string>((resolve) => {
+      resolvePreview = resolve;
+    });
+
+    const singleAsset = [sampleAssets[0]!];
+    const repository = createRepository({
+      list: vi.fn(async () => singleAsset),
+      getPreviewUrl: vi.fn(() => previewPromise),
+    });
+
+    const { unmount } = render(
+      <MediaGrid
+        repository={repository}
+        onInsert={vi.fn()}
+        onReplace={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(repository.getPreviewUrl).toHaveBeenCalledWith("asset-1");
+    });
+
+    unmount();
+    resolvePreview("blob:deferred-preview");
+
+    await waitFor(() => {
+      expect(repository.releasePreviewUrl).toHaveBeenCalledTimes(1);
+      expect(repository.releasePreviewUrl).toHaveBeenCalledWith(
+        "asset-1",
+        "blob:deferred-preview",
+      );
+    });
+  });
+
+  it("does not mutate repo B list after deferred delete on repo A", async () => {
+    let resolveDeleteA: () => void = () => undefined;
+    const deletePromise = new Promise<void>((resolve) => {
+      resolveDeleteA = resolve;
+    });
+
+    const repoA: MediaRepository = {
+      list: vi.fn(async () => sampleAssets),
+      getPreviewUrl: vi.fn(async (id: string) => `blob:A-${id}`),
+      releasePreviewUrl: vi.fn(),
+      delete: vi.fn(() => deletePromise),
+    };
+
+    const repoBAsset: MediaAsset = {
+      id: "asset-b",
+      filename: "b-only.png",
+      mimeType: "image/png",
+      sizeBytes: 1,
+      width: 1,
+      height: 1,
+      createdAt: "2026-01-03T00:00:00.000Z",
+    };
+
+    const repoB: MediaRepository = {
+      list: vi.fn(async () => [repoBAsset]),
+      getPreviewUrl: vi.fn(async () => "blob:B-preview"),
+      releasePreviewUrl: vi.fn(),
+      delete: vi.fn(async () => undefined),
+    };
+
+    const onDelete = vi.fn();
+    const { rerender } = render(
+      <MediaGrid
+        repository={repoA}
+        onInsert={vi.fn()}
+        onReplace={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+
+    await screen.findByText("photo.png");
+    fireEvent.click(screen.getAllByRole("button", { name: /удалить/i })[0]!);
+
+    rerender(
+      <MediaGrid
+        repository={repoB}
+        onInsert={vi.fn()}
+        onReplace={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+
+    expect(await screen.findByText("b-only.png")).toBeInTheDocument();
+
+    resolveDeleteA();
+    await waitFor(() => {
+      expect(repoA.delete).toHaveBeenCalledWith("asset-1");
+    });
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByText("b-only.png")).toBeInTheDocument();
+    expect(screen.queryByText("photo.png")).not.toBeInTheDocument();
+  });
+
   it("releases preview URLs on unmount through captured repository", async () => {
     const repository = createRepository();
     const { unmount } = render(

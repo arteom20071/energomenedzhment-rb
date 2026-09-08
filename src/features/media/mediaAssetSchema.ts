@@ -2,8 +2,21 @@ import { z } from "zod";
 
 import type { MediaAsset } from "./types";
 
-const ISO_DATETIME_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+const CANONICAL_UTC_ISO_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+export function isCanonicalUtcIsoTimestamp(value: string): boolean {
+  if (!CANONICAL_UTC_ISO_PATTERN.test(value)) {
+    return false;
+  }
+
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return false;
+  }
+
+  return parsed.toISOString() === value;
+}
 
 export const mediaAssetSchema = z
   .object({
@@ -15,9 +28,8 @@ export const mediaAssetSchema = z
     height: z.number().finite().positive(),
     createdAt: z
       .string()
-      .regex(ISO_DATETIME_PATTERN, "createdAt must be ISO-8601 UTC datetime")
-      .refine((value) => !Number.isNaN(Date.parse(value)), {
-        message: "createdAt must be a valid ISO-8601 UTC datetime",
+      .refine(isCanonicalUtcIsoTimestamp, {
+        message: "createdAt must be a canonical UTC ISO-8601 timestamp",
       }),
   })
   .strict();
