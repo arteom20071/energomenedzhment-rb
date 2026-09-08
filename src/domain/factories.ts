@@ -29,6 +29,22 @@ export function generateId(): string {
   return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export function generateUniqueId(usedIds: Set<string>): string {
+  const baseId = generateId();
+  if (!usedIds.has(baseId)) {
+    return baseId;
+  }
+
+  for (let attempt = 1; attempt <= 1000; attempt += 1) {
+    const candidate = `${baseId}-${attempt}`;
+    if (!usedIds.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `${baseId}-fallback-${usedIds.size}`;
+}
+
 function nextZIndex(elements: SlideElement[]): number {
   if (elements.length === 0) {
     return 0;
@@ -37,9 +53,13 @@ function nextZIndex(elements: SlideElement[]): number {
   return Math.max(...elements.map((element) => element.zIndex)) + 1;
 }
 
-export function createSlide(elements: SlideElement[] = []): Slide {
+export function createSlide(elements: SlideElement[] = [], usedIds?: Set<string>): Slide {
+  const ids = usedIds ?? new Set<string>();
+  const slideId = generateUniqueId(ids);
+  ids.add(slideId);
+
   return {
-    id: generateId(),
+    id: slideId,
     background: "#ffffff",
     transition: "fade",
     elements: [...elements],
@@ -47,9 +67,13 @@ export function createSlide(elements: SlideElement[] = []): Slide {
 }
 
 export function createPresentation(title = "Untitled presentation"): Presentation {
-  const slide = createSlide();
+  const usedIds = new Set<string>();
+  const presentationId = generateUniqueId(usedIds);
+  usedIds.add(presentationId);
+  const slide = createSlide([], usedIds);
+
   return {
-    id: generateId(),
+    id: presentationId,
     title,
     aspectRatio: "16:9",
     slides: [slide],
@@ -127,4 +151,15 @@ export function createImageElement(
     },
     ...overrides,
   });
+}
+
+export function collectPresentationIds(presentation: Presentation): Set<string> {
+  const ids = new Set<string>([presentation.id]);
+  for (const slide of presentation.slides) {
+    ids.add(slide.id);
+    for (const element of slide.elements) {
+      ids.add(element.id);
+    }
+  }
+  return ids;
 }

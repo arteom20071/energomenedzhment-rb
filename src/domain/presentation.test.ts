@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
+  MAX_ELEMENTS_PER_SLIDE,
+  MAX_SLIDES,
   parsePresentation,
   presentationSchema,
   type Presentation,
@@ -40,6 +42,11 @@ describe("presentation constants", () => {
   it("exports canvas dimensions", () => {
     expect(CANVAS_WIDTH).toBe(1920);
     expect(CANVAS_HEIGHT).toBe(1080);
+  });
+
+  it("exports collection bounds", () => {
+    expect(MAX_SLIDES).toBe(100);
+    expect(MAX_ELEMENTS_PER_SLIDE).toBe(1000);
   });
 });
 
@@ -213,5 +220,49 @@ describe("parsePresentation invalid cases", () => {
     if (!result.success) {
       expect(result.errors[0]?.path).toMatch(/height/);
     }
+  });
+
+  it("reports nested style error paths", () => {
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [
+        {
+          ...validPresentation.slides[0],
+          elements: [
+            {
+              ...validElement,
+              styles: { foo: { bar: () => undefined } },
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => e.path.includes("styles.foo.bar"))).toBe(true);
+    }
+  });
+
+  it("rejects more than max slides", () => {
+    const slide = validPresentation.slides[0]!;
+    const slides = Array.from({ length: MAX_SLIDES + 1 }, (_, index) => ({
+      ...slide,
+      id: `slide-${index}`,
+      elements: [],
+    }));
+    const result = parsePresentation({ ...validPresentation, slides });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects more than max elements per slide", () => {
+    const elements = Array.from({ length: MAX_ELEMENTS_PER_SLIDE + 1 }, (_, index) => ({
+      ...validElement,
+      id: `el-${index}`,
+    }));
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [{ ...validPresentation.slides[0]!, elements }],
+    });
+    expect(result.success).toBe(false);
   });
 });

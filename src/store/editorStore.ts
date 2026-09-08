@@ -5,11 +5,18 @@ import { useStore } from "zustand";
 import type { TemporalState } from "zundo";
 
 import {
+  collectPresentationIds,
   createPresentation,
   createSlide,
-  generateId,
+  generateUniqueId,
 } from "../domain/factories";
-import { parsePresentation } from "../domain/presentation";
+import {
+  formatValidationErrors,
+  MAX_ELEMENTS_PER_SLIDE,
+  MAX_SLIDES,
+  parsePresentation,
+  slideElementSchema,
+} from "../domain/presentation";
 import type { Presentation, Slide, SlideElement } from "../domain/presentation";
 
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
@@ -86,9 +93,9 @@ export interface EditorState {
   setSaveStatus: (status: SaveStatus) => void;
 }
 
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 2;
-const HISTORY_LIMIT = 100;
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 2;
+export const HISTORY_LIMIT = 100;
 
 function clampZoom(zoom: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
@@ -105,6 +112,113 @@ function getActiveSlide(state: EditorState): Slide | undefined {
   return state.presentation.slides.find((slide) => slide.id === state.activeSlideId);
 }
 
+function normalizeSelection(state: EditorState, elementIds: string[]): string[] {
+  const activeSlide = getActiveSlide(state);
+  if (!activeSlide) {
+    return [];
+  }
+
+  const validIds = new Set(activeSlide.elements.map((element) => element.id));
+  return [...new Set(elementIds)].filter((id) => validIds.has(id));
+}
+
+function findDuplicateOriginal(
+  duplicate: SlideElement,
+  elements: SlideElement[],
+): SlideElement | undefined {
+  return elements.find(
+    (element) =>
+      element.type === duplicate.type &&
+      element.content === duplicate.content &&
+      element.x === duplicate.x - 20 &&
+      element.y === duplicate.y - 20,
+  );
+}
+
+function findDuplicateCopy(
+  original: SlideElement,
+  elements: SlideElement[],
+): SlideElement | undefined {
+  return elements.find(
+    (element) =>
+      element.type === original.type &&
+      element.content === original.content &&
+      element.x === original.x + 20 &&
+      element.y === original.y + 20,
+  );
+}
+
+function normalizeSelectionAfterTemporalRestore(
+  state: EditorState,
+  previousPresentation: Presentation,
+  previousSelection: string[],
+): string[] {
+  const activeSlide = getActiveSlide(state);
+  const previousActiveSlide = previousPresentation.slides.find(
+    (slide) => slide.id === state.activeSlideId,
+  );
+  if (!activeSlide || !previousActiveSlide) {
+    return normalizeSelection(state, state.selectedElementIds);
+  }
+
+  const currentIds = new Set(activeSlide.elements.map((element) => element.id));
+  const previousIds = new Set(previousActiveSlide.elements.map((element) => element.id));
+  const removedIds = new Set([...previousIds].filter((id) => !currentIds.has(id)));
+  const addedElements = activeSlide.elements.filter((element) => !previousIds.has(element.id));
+
+  if (addedElements.length > 0 && previousSelection.length > 0) {
+    const remapped = previousSelection.flatMap((selectedId) => {
+      const original = activeSlide.elements.find((element) => element.id === selectedId);
+      if (!original) {
+        return [];
+      }
+      const duplicate = findDuplicateCopy(original, addedElements);
+      return duplicate ? [duplicate.id] : [selectedId];
+    });
+    const normalizedRemapped = normalizeSelection(state, remapped);
+    if (normalizedRemapped.length > 0) {
+      return normalizedRemapped;
+    }
+  }
+
+  const staleSelected = previousSelection.filter((id) => removedIds.has(id));
+  if (staleSelected.length > 0) {
+    const remapped = staleSelected.flatMap((staleId) => {
+      const removed = previousActiveSlide.elements.find((element) => element.id === staleId);
+      if (!removed) {
+        return [];
+      }
+      const original = findDuplicateOriginal(removed, activeSlide.elements);
+      return original ? [original.id] : [];
+    });
+    return normalizeSelection(state, remapped);
+  }
+
+  return normalizeSelection(state, state.selectedElementIds);
+}
+
+function validateElementUpdates(
+  elements: SlideElement[],
+  updates: ElementUpdate[],
+): boolean {
+  const elementsById = new Map(elements.map((element) => [element.id, element]));
+
+  for (const update of updates) {
+    const element = elementsById.get(update.id);
+    if (!element) {
+      continue;
+    }
+
+    const merged = { ...element, ...update.changes };
+    const parsed = slideElementSchema.safeParse(merged);
+    if (!parsed.success) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function normalizeZIndices(elements: SlideElement[]): SlideElement[] {
   return [...elements]
     .sort((left, right) => left.zIndex - right.zIndex || left.id.localeCompare(right.id))
@@ -116,26 +230,28 @@ function applyZOrderChange(
   selectedIds: string[],
   mode: "forward" | "backward" | "front" | "back",
 ): SlideElement[] {
-  if (selectedIds.length === 0) {
+  const existingSelectedIds = selectedIds.filter((id) =>
+    elements.some((element) => element.id === id),
+  );
+
+  if (existingSelectedIds.length === 0) {
     return elements;
   }
 
-  const selectedSet = new Set(selectedIds);
+  const selectedSet = new Set(existingSelectedIds);
   let updated = normalizeZIndices(elements);
+
+  const compareSelectedIds = (leftId: string, rightId: string): number => {
+    const left = updated.find((element) => element.id === leftId);
+    const right = updated.find((element) => element.id === rightId);
+    return (left?.zIndex ?? 0) - (right?.zIndex ?? 0) || leftId.localeCompare(rightId);
+  };
 
   const moveOneStep = (direction: "forward" | "backward") => {
     const ordered =
       direction === "forward"
-        ? [...selectedIds].sort(
-            (leftId, rightId) =>
-              updated.find((element) => element.id === rightId)!.zIndex -
-              updated.find((element) => element.id === leftId)!.zIndex,
-          )
-        : [...selectedIds].sort(
-            (leftId, rightId) =>
-              updated.find((element) => element.id === leftId)!.zIndex -
-              updated.find((element) => element.id === rightId)!.zIndex,
-          );
+        ? [...existingSelectedIds].sort((leftId, rightId) => compareSelectedIds(rightId, leftId))
+        : [...existingSelectedIds].sort(compareSelectedIds);
 
     for (const elementId of ordered) {
       const currentIndex = updated.findIndex((element) => element.id === elementId);
@@ -166,14 +282,15 @@ function applyZOrderChange(
   } else if (mode === "backward") {
     moveOneStep("backward");
   } else if (mode === "front") {
+    const selectedOrdered = [...existingSelectedIds].sort(compareSelectedIds);
     const maxZIndex = Math.max(...updated.map((element) => element.zIndex));
-    let nextZIndex = maxZIndex;
+    const zIndexById = new Map<string, number>();
+    selectedOrdered.forEach((id, index) => {
+      zIndexById.set(id, maxZIndex + 1 + index);
+    });
     updated = updated.map((element) => {
-      if (!selectedSet.has(element.id)) {
-        return element;
-      }
-      nextZIndex += 1;
-      return { ...element, zIndex: nextZIndex };
+      const nextZIndex = zIndexById.get(element.id);
+      return nextZIndex !== undefined ? { ...element, zIndex: nextZIndex } : element;
     });
   } else {
     updated = updated.map((element) =>
@@ -184,13 +301,27 @@ function applyZOrderChange(
   return normalizeZIndices(updated);
 }
 
-function duplicateElements(elements: SlideElement[]): SlideElement[] {
-  return elements.map((element) => ({
-    ...element,
-    id: generateId(),
-    x: element.x + 20,
-    y: element.y + 20,
-  }));
+function duplicateElementsForSlide(
+  allElements: SlideElement[],
+  selectedElements: SlideElement[],
+  usedIds: Set<string>,
+): SlideElement[] {
+  const maxZIndex = allElements.reduce((max, element) => Math.max(max, element.zIndex), -1);
+  const selectedOrdered = [...selectedElements].sort(
+    (left, right) => left.zIndex - right.zIndex || left.id.localeCompare(right.id),
+  );
+
+  return selectedOrdered.map((element, index) => {
+    const id = generateUniqueId(usedIds);
+    usedIds.add(id);
+    return {
+      ...element,
+      id,
+      x: element.x + 20,
+      y: element.y + 20,
+      zIndex: maxZIndex + 1 + index,
+    };
+  });
 }
 
 function createEditorStateCreator(initial?: EditorInitialState) {
@@ -210,7 +341,7 @@ function createEditorStateCreator(initial?: EditorInitialState) {
       setPresentation: (presentation) => {
         const validated = parsePresentation(presentation);
         if (!validated.success) {
-          throw new Error(validated.errors.map((error) => error.message).join("; "));
+          throw new Error(formatValidationErrors(validated.errors));
         }
 
         set({
@@ -241,11 +372,20 @@ function createEditorStateCreator(initial?: EditorInitialState) {
         });
       },
       setSelection: (elementIds) => {
-        set({ selectedElementIds: [...new Set(elementIds)] });
+        set((state) => ({
+          selectedElementIds: normalizeSelection(state, elementIds),
+        }));
       },
       toggleSelection: (elementId) => {
         set((state) => {
-          const selected = new Set(state.selectedElementIds);
+          const activeSlide = getActiveSlide(state);
+          if (!activeSlide?.elements.some((element) => element.id === elementId)) {
+            return {
+              selectedElementIds: normalizeSelection(state, state.selectedElementIds),
+            };
+          }
+
+          const selected = new Set(normalizeSelection(state, state.selectedElementIds));
           if (selected.has(elementId)) {
             selected.delete(elementId);
           } else {
@@ -258,18 +398,24 @@ function createEditorStateCreator(initial?: EditorInitialState) {
         set({ selectedElementIds: [] });
       },
       addSlide: () => {
-        const slide = createSlide();
-        set((state) => ({
-          presentation: {
-            ...state.presentation,
-            slides: [...state.presentation.slides, slide],
-          },
-          activeSlideId: slide.id,
-          selectedElementIds: [],
-          editingTextId: null,
-          cropElementId: null,
-          saveStatus: "dirty",
-        }));
+        set((state) => {
+          if (state.presentation.slides.length >= MAX_SLIDES) {
+            return state;
+          }
+
+          const slide = createSlide();
+          return {
+            presentation: {
+              ...state.presentation,
+              slides: [...state.presentation.slides, slide],
+            },
+            activeSlideId: slide.id,
+            selectedElementIds: [],
+            editingTextId: null,
+            cropElementId: null,
+            saveStatus: "dirty" as const,
+          };
+        });
       },
       duplicateSlide: (slideId) => {
         set((state) => {
@@ -279,13 +425,18 @@ function createEditorStateCreator(initial?: EditorInitialState) {
           }
 
           const source = state.presentation.slides[slideIndex]!;
+          const usedIds = collectPresentationIds(state.presentation);
+          const duplicateId = generateUniqueId(usedIds);
+          usedIds.add(duplicateId);
+
           const duplicate: Slide = {
             ...source,
-            id: generateId(),
-            elements: source.elements.map((element) => ({
-              ...element,
-              id: generateId(),
-            })),
+            id: duplicateId,
+            elements: source.elements.map((element) => {
+              const elementId = generateUniqueId(usedIds);
+              usedIds.add(elementId);
+              return { ...element, id: elementId };
+            }),
           };
 
           const slides = [...state.presentation.slides];
@@ -303,6 +454,11 @@ function createEditorStateCreator(initial?: EditorInitialState) {
       },
       deleteSlide: (slideId) => {
         set((state) => {
+          const slideIndex = state.presentation.slides.findIndex((slide) => slide.id === slideId);
+          if (slideIndex === -1) {
+            return state;
+          }
+
           if (state.presentation.slides.length === 1) {
             const onlySlide = state.presentation.slides[0]!;
             return {
@@ -317,21 +473,22 @@ function createEditorStateCreator(initial?: EditorInitialState) {
             };
           }
 
-          const slideIndex = state.presentation.slides.findIndex((slide) => slide.id === slideId);
-          if (slideIndex === -1) {
-            return state;
-          }
-
           const slides = state.presentation.slides.filter((slide) => slide.id !== slideId);
-          const nextActiveSlide =
-            slides[Math.min(slideIndex, slides.length - 1)] ?? slides[0];
+          const deletingActiveSlide = state.activeSlideId === slideId;
+          const nextActiveSlide = deletingActiveSlide
+            ? slides[Math.min(slideIndex, slides.length - 1)] ?? slides[0]
+            : undefined;
 
           return {
             presentation: { ...state.presentation, slides },
-            activeSlideId: nextActiveSlide?.id ?? "",
-            selectedElementIds: [],
-            editingTextId: null,
-            cropElementId: null,
+            ...(deletingActiveSlide
+              ? {
+                  activeSlideId: nextActiveSlide?.id ?? "",
+                  selectedElementIds: [],
+                  editingTextId: null,
+                  cropElementId: null,
+                }
+              : {}),
             saveStatus: "dirty" as const,
           };
         });
@@ -361,6 +518,23 @@ function createEditorStateCreator(initial?: EditorInitialState) {
             return state;
           }
 
+          if (activeSlide.elements.length >= MAX_ELEMENTS_PER_SLIDE) {
+            return state;
+          }
+
+          const usedIds = collectPresentationIds(state.presentation);
+          let elementToAdd = element;
+          if (usedIds.has(element.id)) {
+            const nextId = generateUniqueId(usedIds);
+            usedIds.add(nextId);
+            elementToAdd = { ...element, id: nextId };
+          }
+
+          const parsed = slideElementSchema.safeParse(elementToAdd);
+          if (!parsed.success) {
+            return state;
+          }
+
           return {
             presentation: {
               ...state.presentation,
@@ -368,12 +542,12 @@ function createEditorStateCreator(initial?: EditorInitialState) {
                 slide.id === activeSlide.id
                   ? {
                       ...slide,
-                      elements: normalizeZIndices([...slide.elements, element]),
+                      elements: normalizeZIndices([...slide.elements, parsed.data]),
                     }
                   : slide,
               ),
             },
-            selectedElementIds: [element.id],
+            selectedElementIds: [parsed.data.id],
             saveStatus: "dirty" as const,
           };
         });
@@ -389,6 +563,10 @@ function createEditorStateCreator(initial?: EditorInitialState) {
         set((state) => {
           const activeSlide = getActiveSlide(state);
           if (!activeSlide) {
+            return state;
+          }
+
+          if (!validateElementUpdates(activeSlide.elements, updates)) {
             return state;
           }
 
@@ -457,7 +635,12 @@ function createEditorStateCreator(initial?: EditorInitialState) {
           const selectedElements = activeSlide.elements.filter((element) =>
             selected.has(element.id),
           );
-          const duplicates = duplicateElements(selectedElements);
+          const usedIds = collectPresentationIds(state.presentation);
+          const duplicates = duplicateElementsForSlide(
+            activeSlide.elements,
+            selectedElements,
+            usedIds,
+          );
 
           return {
             presentation: {
@@ -499,6 +682,7 @@ function createEditorStateCreator(initial?: EditorInitialState) {
                   : slide,
               ),
             },
+            selectedElementIds: normalizeSelection(state, state.selectedElementIds),
             saveStatus: "dirty" as const,
           };
         });
@@ -526,6 +710,7 @@ function createEditorStateCreator(initial?: EditorInitialState) {
                   : slide,
               ),
             },
+            selectedElementIds: normalizeSelection(state, state.selectedElementIds),
             saveStatus: "dirty" as const,
           };
         });
@@ -553,6 +738,7 @@ function createEditorStateCreator(initial?: EditorInitialState) {
                   : slide,
               ),
             },
+            selectedElementIds: normalizeSelection(state, state.selectedElementIds),
             saveStatus: "dirty" as const,
           };
         });
@@ -580,11 +766,15 @@ function createEditorStateCreator(initial?: EditorInitialState) {
                   : slide,
               ),
             },
+            selectedElementIds: normalizeSelection(state, state.selectedElementIds),
             saveStatus: "dirty" as const,
           };
         });
       },
       setZoom: (zoom) => {
+        if (!Number.isFinite(zoom)) {
+          return;
+        }
         set({ zoom: clampZoom(zoom) });
       },
       setActiveTool: (tool) => {
@@ -625,9 +815,48 @@ function attachPresentationHistoryClear(store: EditorStoreApi): EditorStoreApi {
   return store;
 }
 
+function attachTemporalSelectionNormalization(store: EditorStoreApi): EditorStoreApi {
+  const { undo, redo } = store.temporal.getState();
+
+  store.temporal.setState({
+    undo: () => {
+      const beforeState = store.getState();
+      const previousPresentation = beforeState.presentation;
+      const previousSelection = [...beforeState.selectedElementIds];
+      undo();
+      const afterState = store.getState();
+      store.setState({
+        selectedElementIds: normalizeSelectionAfterTemporalRestore(
+          afterState,
+          previousPresentation,
+          previousSelection,
+        ),
+      });
+    },
+    redo: () => {
+      const beforeState = store.getState();
+      const previousPresentation = beforeState.presentation;
+      const previousSelection = [...beforeState.selectedElementIds];
+      redo();
+      const afterState = store.getState();
+      store.setState({
+        selectedElementIds: normalizeSelectionAfterTemporalRestore(
+          afterState,
+          previousPresentation,
+          previousSelection,
+        ),
+      });
+    },
+  });
+
+  return store;
+}
+
 export function createEditorStore(initial?: EditorInitialState): EditorStoreApi {
   const store = createStore<EditorState>()(createEditorStateCreator(initial)) as EditorStoreApi;
-  return attachPresentationHistoryClear(store);
+  attachPresentationHistoryClear(store);
+  attachTemporalSelectionNormalization(store);
+  return store;
 }
 
 export const useEditorStore = create<EditorState>()(
@@ -638,6 +867,7 @@ export const useEditorStore = create<EditorState>()(
 };
 
 attachPresentationHistoryClear(useEditorStore);
+attachTemporalSelectionNormalization(useEditorStore);
 
 export function useEditorTemporalStore<T>(
   selector: (state: TemporalState<PartializedEditorState>) => T,

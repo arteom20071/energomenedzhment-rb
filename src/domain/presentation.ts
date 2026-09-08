@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const CANVAS_WIDTH = 1920;
 export const CANVAS_HEIGHT = 1080;
+export const MAX_SLIDES = 100;
+export const MAX_ELEMENTS_PER_SLIDE = 1000;
 
 export type AspectRatio = "16:9";
 export type SlideTransition = "fade" | "slide" | "zoom" | "none";
@@ -47,67 +49,75 @@ export type ParsePresentationResult =
 
 const FORBIDDEN_STYLE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
-function isJsonSafeValue(value: unknown): boolean {
+function collectJsonUnsafeStyleErrors(
+  value: unknown,
+  path: (string | number)[],
+  context: z.RefinementCtx,
+): void {
   if (value === null) {
-    return true;
+    return;
   }
 
   const valueType = typeof value;
 
   if (valueType === "string" || valueType === "boolean") {
-    return true;
+    return;
   }
 
   if (valueType === "number") {
-    return Number.isFinite(value);
+    if (!Number.isFinite(value)) {
+      context.addIssue({
+        code: "custom",
+        message: "styles must contain only JSON-safe values",
+        path,
+      });
+    }
+    return;
   }
 
   if (valueType === "function" || valueType === "symbol" || valueType === "bigint") {
-    return false;
+    context.addIssue({
+      code: "custom",
+      message: "styles must contain only JSON-safe values",
+      path,
+    });
+    return;
   }
 
   if (Array.isArray(value)) {
-    return value.every(isJsonSafeValue);
+    value.forEach((item, index) => {
+      collectJsonUnsafeStyleErrors(item, [...path, index], context);
+    });
+    return;
   }
 
   if (valueType === "object") {
     if (Object.getPrototypeOf(value) !== Object.prototype && !Array.isArray(value)) {
-      return false;
+      context.addIssue({
+        code: "custom",
+        message: "styles must contain only JSON-safe values",
+        path,
+      });
+      return;
     }
 
     for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
       if (FORBIDDEN_STYLE_KEYS.has(key)) {
-        return false;
+        context.addIssue({
+          code: "custom",
+          message: `Forbidden styles key: ${key}`,
+          path: [...path, key],
+        });
       }
-      if (!isJsonSafeValue(nestedValue)) {
-        return false;
-      }
+      collectJsonUnsafeStyleErrors(nestedValue, [...path, key], context);
     }
-    return true;
   }
-
-  return false;
 }
 
 const jsonSafeStylesSchema = z
   .record(z.string(), z.unknown())
   .superRefine((styles, context) => {
-    for (const key of Object.keys(styles)) {
-      if (FORBIDDEN_STYLE_KEYS.has(key)) {
-        context.addIssue({
-          code: "custom",
-          message: `Forbidden styles key: ${key}`,
-          path: [key],
-        });
-      }
-    }
-
-    if (!isJsonSafeValue(styles)) {
-      context.addIssue({
-        code: "custom",
-        message: "styles must contain only JSON-safe values",
-      });
-    }
+    collectJsonUnsafeStyleErrors(styles, [], context);
   });
 
 export const slideElementSchema = z
@@ -131,7 +141,7 @@ export const slideSchema = z
     id: z.string().min(1),
     background: z.string().min(1),
     transition: z.enum(["fade", "slide", "zoom", "none"]),
-    elements: z.array(slideElementSchema),
+    elements: z.array(slideElementSchema).max(MAX_ELEMENTS_PER_SLIDE),
   })
   .strict();
 
@@ -140,9 +150,31 @@ export const presentationSchema = z
     id: z.string().min(1),
     title: z.string(),
     aspectRatio: z.literal("16:9"),
-    slides: z.array(slideSchema).min(1),
+    slides: z.array(slideSchema).min(1).max(MAX_SLIDES),
   })
   .strict();
+
+function formatPath(path: (string | number)[]): string {
+  if (path.length === 0) {
+    return "(root)";
+  }
+
+  let result = "";
+  for (const segment of path) {
+    if (typeof segment === "number") {
+      result += `[${segment}]`;
+    } else {
+      result += result ? `.${segment}` : segment;
+    }
+  }
+  return result;
+}
+
+function formatForbiddenPath(path: string): string {
+  return path
+    .replace(/^\(root\)\./, "")
+    .replace(/\.(\d+)(?=\.|$)/g, "[$1]");
+}
 
 function collectForbiddenKeyErrors(input: unknown, path = "(root)"): ValidationError[] {
   if (input === null || typeof input !== "object") {
@@ -150,7 +182,7 @@ function collectForbiddenKeyErrors(input: unknown, path = "(root)"): ValidationE
   }
 
   if (Array.isArray(input)) {
-    return input.flatMap((item, index) => collectForbiddenKeyErrors(item, `${path}.${index}`));
+    return input.flatMap((item, index) => collectForbiddenKeyErrors(item, `${path}[${index}]`));
   }
 
   const errors: ValidationError[] = [];
@@ -162,7 +194,7 @@ function collectForbiddenKeyErrors(input: unknown, path = "(root)"): ValidationE
 
     if (FORBIDDEN_STYLE_KEYS.has(key)) {
       errors.push({
-        path: `${path}.${key}`,
+        path: formatForbiddenPath(`${path}.${key}`),
         message: `Forbidden key: ${key}`,
       });
     }
@@ -172,6 +204,7 @@ function collectForbiddenKeyErrors(input: unknown, path = "(root)"): ValidationE
 
   return errors;
 }
+
 function collectDuplicateIdErrors(presentation: Presentation): ValidationError[] {
   const seen = new Map<string, string>();
 
@@ -195,14 +228,14 @@ function collectDuplicateIdErrors(presentation: Presentation): ValidationError[]
   }
 
   presentation.slides.forEach((slide, slideIndex) => {
-    const slidePath = `slides.${slideIndex}.id`;
+    const slidePath = `slides[${slideIndex}].id`;
     const slideDuplicate = register(slide.id, slidePath);
     if (slideDuplicate) {
       errors.push(slideDuplicate);
     }
 
     slide.elements.forEach((element, elementIndex) => {
-      const elementPath = `slides.${slideIndex}.elements.${elementIndex}.id`;
+      const elementPath = `slides[${slideIndex}].elements[${elementIndex}].id`;
       const elementDuplicate = register(element.id, elementPath);
       if (elementDuplicate) {
         errors.push(elementDuplicate);
@@ -215,7 +248,7 @@ function collectDuplicateIdErrors(presentation: Presentation): ValidationError[]
 
 function formatZodErrors(error: z.ZodError): ValidationError[] {
   return error.issues.map((issue) => ({
-    path: issue.path.length > 0 ? issue.path.join(".") : "(root)",
+    path: formatPath(issue.path.filter((segment): segment is string | number => typeof segment !== "symbol")),
     message: issue.message,
   }));
 }
@@ -241,4 +274,8 @@ export function parsePresentation(input: unknown): ParsePresentationResult {
 
 export function validatePresentation(input: unknown): ParsePresentationResult {
   return parsePresentation(input);
+}
+
+export function formatValidationErrors(errors: ValidationError[]): string {
+  return errors.map((error) => `${error.path}: ${error.message}`).join("; ");
 }

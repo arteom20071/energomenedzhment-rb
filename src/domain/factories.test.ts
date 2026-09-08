@@ -10,6 +10,7 @@ import {
   resetIdGenerator,
   setIdGenerator,
 } from "./factories";
+import { parsePresentation } from "./presentation";
 
 describe("generateId", () => {
   it("uses injected generator in tests", () => {
@@ -56,6 +57,37 @@ describe("factories", () => {
     expect(text.zIndex).toBe(6);
     expect(shape.zIndex).toBe(6);
     expect(image.zIndex).toBe(6);
+    resetIdGenerator();
+  });
+
+  it("guarantees presentation and initial slide ids differ when generator collides", () => {
+    setIdGenerator(() => "same-id");
+    const presentation = createPresentation("Collision Deck");
+    expect(presentation.id).not.toBe(presentation.slides[0]!.id);
+    expect(parsePresentation(presentation).success).toBe(true);
+    resetIdGenerator();
+  });
+
+  it("guarantees unique ids across the full created object graph on collision", () => {
+    setIdGenerator(() => "dup");
+    const presentation = createPresentation("Graph");
+    const ids = new Set<string>([presentation.id]);
+    for (const slide of presentation.slides) {
+      expect(ids.has(slide.id)).toBe(false);
+      ids.add(slide.id);
+      for (const element of slide.elements) {
+        expect(ids.has(element.id)).toBe(false);
+        ids.add(element.id);
+      }
+    }
+    resetIdGenerator();
+  });
+
+  it("assigns deterministic fallback ids when generator keeps colliding", () => {
+    setIdGenerator(() => "dup");
+    const presentation = createPresentation("Fallback");
+    expect(presentation.id).toBe("dup");
+    expect(presentation.slides[0]!.id).toBe("dup-1");
     resetIdGenerator();
   });
 });
