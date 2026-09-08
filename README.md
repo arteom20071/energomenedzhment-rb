@@ -41,10 +41,9 @@ npm run build
 
 - `src/` contains the minimal React application shell and smoke test.
 - `vite.config.ts` configures React, Tailwind CSS, and Vitest.
-- `assets/images/` retains the nine original SVG infographics.
-- `Energomenedzhment_energoaudit_RB.pptx` remains the original presentation
-  artifact.
-- `tools/` retains the existing SVG and README generation utilities.
+- `assets/images/` retains the nine original SVG infographics shared by the
+  legacy deck and future seed migration.
+- `tools/generate_svg.py` rebuilds SVG infographics as UTF-8.
 
 The intended editor stack includes Tailwind CSS, Lucide React, Zustand with
 zundo, React Moveable, React Selecto, Zod, html-to-image, IndexedDB, Vitest,

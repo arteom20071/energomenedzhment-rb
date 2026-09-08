@@ -1,6 +1,7 @@
 # Media slots
 
-Replace SVG files in this folder while keeping filenames, or update img src in index.html.
+Replace SVG files in this folder while keeping filenames, or update img src in
+`legacy/index.html`.
 
 | File | Slide |
 | --- | --- |
