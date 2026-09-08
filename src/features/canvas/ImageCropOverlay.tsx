@@ -11,6 +11,7 @@ export interface CropPreviewStyles {
 export interface ImageCropOverlayProps {
   element: SlideElement;
   scale: number;
+  viewportScale?: number;
   onPreviewChange: (styles: CropPreviewStyles) => void;
   onCommit: (styles: CropPreviewStyles) => void;
   onCancel: () => void;
@@ -52,6 +53,7 @@ function toPreview(focal: { x: number; y: number }, cropScale: number): CropPrev
 export function ImageCropOverlay({
   element,
   scale,
+  viewportScale = scale,
   onPreviewChange,
   onCommit,
   onCancel,
@@ -196,8 +198,8 @@ export function ImageCropOverlay({
               clientY: moveEvent.clientY,
               centerX: rect.left + rect.width / 2,
               centerY: rect.top + rect.height / 2,
-              width: element.width * scale,
-              height: element.height * scale,
+              width: element.width * viewportScale,
+              height: element.height * viewportScale,
               rotationDegrees: element.rotation,
             });
             setFocal(next);

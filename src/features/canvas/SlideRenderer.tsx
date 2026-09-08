@@ -126,6 +126,7 @@ export function SlideRenderer({
             <ImageCropOverlay
               element={cropElement}
               scale={1}
+              viewportScale={effectiveScale}
               onPreviewChange={(styles) => onCropPreviewChange?.(styles)}
               onCommit={(styles) => onCropCommit?.(cropElement.id, styles)}
               onCancel={() => onCropCancel?.()}

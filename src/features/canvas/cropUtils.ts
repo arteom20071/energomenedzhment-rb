@@ -3,7 +3,9 @@ export interface PointerToLocalFocalInput {
   clientY: number;
   centerX: number;
   centerY: number;
+  /** Unrotated screen-space width of the element (logical size * viewport scale). */
   width: number;
+  /** Unrotated screen-space height of the element (logical size * viewport scale). */
   height: number;
   rotationDegrees: number;
 }
