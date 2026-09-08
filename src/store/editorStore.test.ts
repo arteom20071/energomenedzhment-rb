@@ -7,6 +7,7 @@ import {
   setIdGenerator,
 } from "../domain/factories";
 import type { Presentation, SlideElement } from "../domain/presentation";
+import { MAX_ELEMENTS_PER_SLIDE, MAX_SLIDES } from "../domain/presentation";
 import { createEditorStore, HISTORY_LIMIT, type EditorStoreApi } from "./editorStore";
 
 let idCounter = 0;
@@ -39,6 +40,17 @@ function buildPresentation(): Presentation {
 function getActiveElements(store: EditorStoreApi): SlideElement[] {
   const state = store.getState();
   return state.presentation.slides.find((slide) => slide.id === state.activeSlideId)?.elements ?? [];
+}
+
+function slideExists(store: EditorStoreApi, slideId: string): boolean {
+  return store.getState().presentation.slides.some((slide) => slide.id === slideId);
+}
+
+function selectionReferencesOnlyActiveSlide(store: EditorStoreApi): boolean {
+  const state = store.getState();
+  const activeElements = getActiveElements(store);
+  const activeIds = new Set(activeElements.map((el) => el.id));
+  return state.selectedElementIds.every((id) => activeIds.has(id));
 }
 
 beforeEach(() => {
@@ -160,7 +172,7 @@ describe("createEditorStore", () => {
     expect(duplicateId).not.toBe(originalId);
     store.temporal.getState().undo();
     expect(getActiveElements(store).some((el) => el.id === duplicateId)).toBe(false);
-    expect(store.getState().selectedElementIds).toEqual([originalId]);
+    expect(store.getState().selectedElementIds).toEqual([]);
   });
 
   it("clears stale selection after redo", () => {
@@ -172,7 +184,7 @@ describe("createEditorStore", () => {
     store.temporal.getState().undo();
     store.temporal.getState().redo();
     expect(getActiveElements(store).some((el) => el.id === duplicateId)).toBe(true);
-    expect(store.getState().selectedElementIds).toEqual([duplicateId]);
+    expect(store.getState().selectedElementIds).toEqual([]);
   });
 
   it("normalizes z-order deterministically", () => {
@@ -376,5 +388,178 @@ describe("createEditorStore", () => {
       }
     }
     resetIdGenerator();
+  });
+
+  it("addSlide uses all document ids when generating slide id", () => {
+    setIdGenerator(() => "dup");
+    const presentation = createPresentation("Dup");
+    const store = createEditorStore({ presentation });
+    store.getState().addSlide();
+    const ids = new Set<string>();
+    for (const slide of store.getState().presentation.slides) {
+      expect(ids.has(slide.id)).toBe(false);
+      ids.add(slide.id);
+    }
+    resetIdGenerator();
+  });
+
+  it("addSlide is a no-op at MAX_SLIDES without partial overflow", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    while (store.getState().presentation.slides.length < MAX_SLIDES) {
+      store.getState().addSlide();
+    }
+    expect(store.getState().presentation.slides).toHaveLength(MAX_SLIDES);
+    store.getState().addSlide();
+    expect(store.getState().presentation.slides).toHaveLength(MAX_SLIDES);
+  });
+
+  it("duplicateSlide is a no-op at MAX_SLIDES without partial overflow", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    while (store.getState().presentation.slides.length < MAX_SLIDES) {
+      store.getState().addSlide();
+    }
+    const countBefore = store.getState().presentation.slides.length;
+    const firstId = store.getState().presentation.slides[0]!.id;
+    store.getState().duplicateSlide(firstId);
+    expect(store.getState().presentation.slides).toHaveLength(countBefore);
+  });
+
+  it("duplicateSelectedElements is a no-op at MAX_ELEMENTS_PER_SLIDE", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const slideId = store.getState().activeSlideId;
+    const slide = store.getState().presentation.slides.find((s) => s.id === slideId)!;
+    const base = slide.elements[0]!;
+    slide.elements = Array.from({ length: MAX_ELEMENTS_PER_SLIDE }, (_, index) => ({
+      ...base,
+      id: `fill-${index}`,
+      zIndex: index,
+    }));
+    store.getState().setPresentation(store.getState().presentation);
+    store.getState().setSelection([slide.elements[0]!.id]);
+    store.getState().duplicateSelectedElements();
+    expect(getActiveElements(store)).toHaveLength(MAX_ELEMENTS_PER_SLIDE);
+  });
+
+  it("addElement is a no-op at MAX_ELEMENTS_PER_SLIDE", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const slideId = store.getState().activeSlideId;
+    const slide = store.getState().presentation.slides.find((s) => s.id === slideId)!;
+    const base = slide.elements[0]!;
+    slide.elements = Array.from({ length: MAX_ELEMENTS_PER_SLIDE }, (_, index) => ({
+      ...base,
+      id: `fill-${index}`,
+      zIndex: index,
+    }));
+    store.getState().setPresentation(store.getState().presentation);
+    store.getState().addElement(createTextElement([], { content: "Overflow" }));
+    expect(getActiveElements(store)).toHaveLength(MAX_ELEMENTS_PER_SLIDE);
+  });
+
+  it("restores activeSlideId to existing slide after undo addSlide", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const originalActiveId = store.getState().activeSlideId;
+    store.getState().addSlide();
+    const addedSlideId = store.getState().activeSlideId;
+    expect(addedSlideId).not.toBe(originalActiveId);
+    store.temporal.getState().undo();
+    expect(slideExists(store, store.getState().activeSlideId)).toBe(true);
+    expect(store.getState().activeSlideId).toBe(originalActiveId);
+    expect(slideExists(store, addedSlideId)).toBe(false);
+  });
+
+  it("clears selection after undo addSlide instead of heuristic remap", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    store.getState().addSlide();
+    store.getState().setSelection(["nonexistent-after-undo"]);
+    store.temporal.getState().undo();
+    expect(selectionReferencesOnlyActiveSlide(store)).toBe(true);
+    expect(store.getState().selectedElementIds).toEqual([]);
+  });
+
+  it("clears stale selection after duplicate undo without coordinate remap", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const originalId = getActiveElements(store)[0]!.id;
+    store.getState().setSelection([originalId]);
+    store.getState().duplicateSelectedElements();
+    const duplicateId = store.getState().selectedElementIds[0]!;
+    store.temporal.getState().undo();
+    expect(getActiveElements(store).some((el) => el.id === duplicateId)).toBe(false);
+    expect(store.getState().selectedElementIds).toEqual([]);
+  });
+
+  it("clears selection after redo when ids are missing", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    store.getState().setSelection([getActiveElements(store)[0]!.id]);
+    store.getState().duplicateSelectedElements();
+    store.temporal.getState().undo();
+    store.getState().setSelection(["ghost-id"]);
+    store.temporal.getState().redo();
+    expect(selectionReferencesOnlyActiveSlide(store)).toBe(true);
+  });
+
+  it("multi-select bringForward moves block preserving relative order", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const extra = createTextElement(getActiveElements(store), { content: "C", y: 110 });
+    store.getState().addElement(extra);
+    const [a, b, c] = getActiveElements(store);
+    store.getState().setSelection([a!.id, b!.id]);
+    store.getState().bringForward();
+    const elements = getActiveElements(store);
+    const zA = elements.find((el) => el.id === a!.id)!.zIndex;
+    const zB = elements.find((el) => el.id === b!.id)!.zIndex;
+    const zC = elements.find((el) => el.id === c!.id)!.zIndex;
+    expect(zA).toBeLessThan(zB);
+    expect(zB).toBeGreaterThan(zC);
+    expect(elements.map((el) => el.zIndex)).toEqual([0, 1, 2]);
+  });
+
+  it("multi-select sendBackward moves block preserving relative order", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const extra = createTextElement(getActiveElements(store), { content: "C", y: 110 });
+    store.getState().addElement(extra);
+    const [a, b, c] = getActiveElements(store);
+    store.getState().setSelection([b!.id, c!.id]);
+    store.getState().sendBackward();
+    const elements = getActiveElements(store);
+    const zA = elements.find((el) => el.id === a!.id)!.zIndex;
+    const zB = elements.find((el) => el.id === b!.id)!.zIndex;
+    const zC = elements.find((el) => el.id === c!.id)!.zIndex;
+    expect(zB).toBeLessThan(zC);
+    expect(zB).toBeLessThan(zA);
+    expect(zC).toBeLessThan(zA);
+    expect(elements.map((el) => el.zIndex)).toEqual([0, 1, 2]);
+  });
+
+  it("multi-select sendToBack moves block preserving relative order", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const extra = createTextElement(getActiveElements(store), { content: "C", y: 110 });
+    store.getState().addElement(extra);
+    const [a, b, c] = getActiveElements(store);
+    store.getState().setSelection([b!.id, c!.id]);
+    store.getState().sendToBack();
+    const elements = getActiveElements(store);
+    const zA = elements.find((el) => el.id === a!.id)!.zIndex;
+    const zB = elements.find((el) => el.id === b!.id)!.zIndex;
+    const zC = elements.find((el) => el.id === c!.id)!.zIndex;
+    expect(zB).toBeLessThan(zC);
+    expect(zC).toBeLessThan(zA);
+    expect(elements.map((el) => el.zIndex)).toEqual([0, 1, 2]);
+  });
+
+  it("z-order does not use lexical id tie-break for equal zIndex", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const slideId = store.getState().activeSlideId;
+    const slide = store.getState().presentation.slides.find((s) => s.id === slideId)!;
+    const [first, second] = slide.elements;
+    slide.elements = [
+      { ...first!, id: "z-b", zIndex: 0 },
+      { ...second!, id: "z-a", zIndex: 0 },
+    ];
+    store.getState().setPresentation(store.getState().presentation);
+    store.getState().setSelection(["z-b"]);
+    store.getState().bringToFront();
+    const elements = getActiveElements(store);
+    expect(elements.find((el) => el.id === "z-b")!.zIndex).toBe(1);
+    expect(elements.find((el) => el.id === "z-a")!.zIndex).toBe(0);
   });
 });

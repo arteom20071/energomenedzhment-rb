@@ -90,4 +90,52 @@ describe("factories", () => {
     expect(presentation.slides[0]!.id).toBe("dup-1");
     resetIdGenerator();
   });
+
+  it("createSlide id differs from supplied element ids and usedIds", () => {
+    setIdGenerator(() => "dup");
+    const usedIds = new Set<string>(["dup", "el-a"]);
+    const slide = createSlide(
+      [
+        {
+          id: "el-a",
+          type: "text",
+          x: 0,
+          y: 0,
+          width: 10,
+          height: 10,
+          rotation: 0,
+          zIndex: 0,
+          styles: {},
+        },
+      ],
+      usedIds,
+    );
+    expect(slide.id).not.toBe("el-a");
+    expect(slide.id).not.toBe("dup");
+    expect(usedIds.has(slide.id)).toBe(true);
+    resetIdGenerator();
+  });
+
+  it("createSlide checks fallback candidates against usedIds", () => {
+    setIdGenerator(() => "dup");
+    const usedIds = new Set<string>(["dup", "dup-1", "dup-2"]);
+    const slide = createSlide([], usedIds);
+    expect(slide.id).toBe("dup-3");
+    resetIdGenerator();
+  });
+
+  it("constant generator produces unique ids across presentation slides and elements", () => {
+    setIdGenerator(() => "same");
+    const presentation = createPresentation("All Same");
+    const allIds = new Set<string>([presentation.id]);
+    for (const slide of presentation.slides) {
+      expect(allIds.has(slide.id)).toBe(false);
+      allIds.add(slide.id);
+      for (const element of slide.elements) {
+        expect(allIds.has(element.id)).toBe(false);
+        allIds.add(element.id);
+      }
+    }
+    resetIdGenerator();
+  });
 });

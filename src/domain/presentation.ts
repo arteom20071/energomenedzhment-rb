@@ -60,6 +60,15 @@ function collectJsonUnsafeStyleErrors(
 
   const valueType = typeof value;
 
+  if (valueType === "undefined" || value === undefined) {
+    context.addIssue({
+      code: "custom",
+      message: "styles must not contain undefined values",
+      path,
+    });
+    return;
+  }
+
   if (valueType === "string" || valueType === "boolean") {
     return;
   }
@@ -247,10 +256,34 @@ function collectDuplicateIdErrors(presentation: Presentation): ValidationError[]
 }
 
 function formatZodErrors(error: z.ZodError): ValidationError[] {
-  return error.issues.map((issue) => ({
-    path: formatPath(issue.path.filter((segment): segment is string | number => typeof segment !== "symbol")),
-    message: issue.message,
-  }));
+  const errors: ValidationError[] = [];
+
+  for (const issue of error.issues) {
+    const pathSegments = issue.path.filter(
+      (segment): segment is string | number => typeof segment !== "symbol",
+    );
+
+    if (issue.code === "unrecognized_keys") {
+      const keys = "keys" in issue && Array.isArray(issue.keys) ? issue.keys : [];
+      for (const key of keys) {
+        if (typeof key !== "string") {
+          continue;
+        }
+        errors.push({
+          path: formatPath([...pathSegments, key]),
+          message: issue.message,
+        });
+      }
+      continue;
+    }
+
+    errors.push({
+      path: formatPath(pathSegments),
+      message: issue.message,
+    });
+  }
+
+  return errors;
 }
 
 export function parsePresentation(input: unknown): ParsePresentationResult {

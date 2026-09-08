@@ -55,6 +55,10 @@ function nextZIndex(elements: SlideElement[]): number {
 
 export function createSlide(elements: SlideElement[] = [], usedIds?: Set<string>): Slide {
   const ids = usedIds ?? new Set<string>();
+  for (const element of elements) {
+    ids.add(element.id);
+  }
+
   const slideId = generateUniqueId(ids);
   ids.add(slideId);
 

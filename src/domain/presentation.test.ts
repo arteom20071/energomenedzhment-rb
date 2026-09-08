@@ -265,4 +265,55 @@ describe("parsePresentation invalid cases", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects undefined in root-level styles", () => {
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [
+        {
+          ...validPresentation.slides[0]!,
+          elements: [{ ...validElement, styles: { color: undefined } }],
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => e.path.includes("styles.color"))).toBe(true);
+    }
+  });
+
+  it("rejects undefined in nested styles", () => {
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [
+        {
+          ...validPresentation.slides[0]!,
+          elements: [{ ...validElement, styles: { theme: { accent: undefined } } }],
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => e.path.includes("styles.theme.accent"))).toBe(true);
+    }
+  });
+
+  it("reports precise path for unknown top-level keys", () => {
+    const result = parsePresentation({ ...validPresentation, rogueKey: true });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => e.path === "rogueKey")).toBe(true);
+    }
+  });
+
+  it("reports precise path for unknown nested slide keys", () => {
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [{ ...validPresentation.slides[0]!, extraField: "x" }],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => e.path.includes("slides[0].extraField"))).toBe(true);
+    }
+  });
 });

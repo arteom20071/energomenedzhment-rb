@@ -122,79 +122,21 @@ function normalizeSelection(state: EditorState, elementIds: string[]): string[] 
   return [...new Set(elementIds)].filter((id) => validIds.has(id));
 }
 
-function findDuplicateOriginal(
-  duplicate: SlideElement,
-  elements: SlideElement[],
-): SlideElement | undefined {
-  return elements.find(
-    (element) =>
-      element.type === duplicate.type &&
-      element.content === duplicate.content &&
-      element.x === duplicate.x - 20 &&
-      element.y === duplicate.y - 20,
-  );
+function normalizeActiveSlideId(state: EditorState): string {
+  if (state.presentation.slides.some((slide) => slide.id === state.activeSlideId)) {
+    return state.activeSlideId;
+  }
+
+  return state.presentation.slides[0]?.id ?? "";
 }
 
-function findDuplicateCopy(
-  original: SlideElement,
-  elements: SlideElement[],
-): SlideElement | undefined {
-  return elements.find(
-    (element) =>
-      element.type === original.type &&
-      element.content === original.content &&
-      element.x === original.x + 20 &&
-      element.y === original.y + 20,
-  );
-}
-
-function normalizeSelectionAfterTemporalRestore(
-  state: EditorState,
-  previousPresentation: Presentation,
-  previousSelection: string[],
-): string[] {
-  const activeSlide = getActiveSlide(state);
-  const previousActiveSlide = previousPresentation.slides.find(
-    (slide) => slide.id === state.activeSlideId,
-  );
-  if (!activeSlide || !previousActiveSlide) {
-    return normalizeSelection(state, state.selectedElementIds);
-  }
-
-  const currentIds = new Set(activeSlide.elements.map((element) => element.id));
-  const previousIds = new Set(previousActiveSlide.elements.map((element) => element.id));
-  const removedIds = new Set([...previousIds].filter((id) => !currentIds.has(id)));
-  const addedElements = activeSlide.elements.filter((element) => !previousIds.has(element.id));
-
-  if (addedElements.length > 0 && previousSelection.length > 0) {
-    const remapped = previousSelection.flatMap((selectedId) => {
-      const original = activeSlide.elements.find((element) => element.id === selectedId);
-      if (!original) {
-        return [];
-      }
-      const duplicate = findDuplicateCopy(original, addedElements);
-      return duplicate ? [duplicate.id] : [selectedId];
-    });
-    const normalizedRemapped = normalizeSelection(state, remapped);
-    if (normalizedRemapped.length > 0) {
-      return normalizedRemapped;
-    }
-  }
-
-  const staleSelected = previousSelection.filter((id) => removedIds.has(id));
-  if (staleSelected.length > 0) {
-    const remapped = staleSelected.flatMap((staleId) => {
-      const removed = previousActiveSlide.elements.find((element) => element.id === staleId);
-      if (!removed) {
-        return [];
-      }
-      const original = findDuplicateOriginal(removed, activeSlide.elements);
-      return original ? [original.id] : [];
-    });
-    return normalizeSelection(state, remapped);
-  }
-
-  return normalizeSelection(state, state.selectedElementIds);
+function normalizeAfterTemporalRestore(state: EditorState): Pick<EditorState, "activeSlideId" | "selectedElementIds"> {
+  const activeSlideId = normalizeActiveSlideId(state);
+  const normalizedState = { ...state, activeSlideId };
+  return {
+    activeSlideId,
+    selectedElementIds: normalizeSelection(normalizedState, state.selectedElementIds),
+  };
 }
 
 function validateElementUpdates(
@@ -219,10 +161,21 @@ function validateElementUpdates(
   return true;
 }
 
+function stableSortByZIndex(elements: SlideElement[]): SlideElement[] {
+  return elements
+    .map((element, index) => ({ element, index }))
+    .sort(
+      (left, right) =>
+        left.element.zIndex - right.element.zIndex || left.index - right.index,
+    )
+    .map(({ element }) => element);
+}
+
 function normalizeZIndices(elements: SlideElement[]): SlideElement[] {
-  return [...elements]
-    .sort((left, right) => left.zIndex - right.zIndex || left.id.localeCompare(right.id))
-    .map((element, index) => ({ ...element, zIndex: index }));
+  return stableSortByZIndex(elements).map((element, index) => ({
+    ...element,
+    zIndex: index,
+  }));
 }
 
 function applyZOrderChange(
@@ -239,66 +192,38 @@ function applyZOrderChange(
   }
 
   const selectedSet = new Set(existingSelectedIds);
-  let updated = normalizeZIndices(elements);
+  const isSelected = (element: SlideElement) => selectedSet.has(element.id);
+  let ordered = stableSortByZIndex(elements);
+  const selectedInOrder = ordered.filter(isSelected);
+  const unselectedInOrder = ordered.filter((element) => !isSelected(element));
 
-  const compareSelectedIds = (leftId: string, rightId: string): number => {
-    const left = updated.find((element) => element.id === leftId);
-    const right = updated.find((element) => element.id === rightId);
-    return (left?.zIndex ?? 0) - (right?.zIndex ?? 0) || leftId.localeCompare(rightId);
-  };
-
-  const moveOneStep = (direction: "forward" | "backward") => {
-    const ordered =
-      direction === "forward"
-        ? [...existingSelectedIds].sort((leftId, rightId) => compareSelectedIds(rightId, leftId))
-        : [...existingSelectedIds].sort(compareSelectedIds);
-
-    for (const elementId of ordered) {
-      const currentIndex = updated.findIndex((element) => element.id === elementId);
-      if (currentIndex === -1) {
-        continue;
-      }
-
-      const swapIndex = direction === "forward" ? currentIndex + 1 : currentIndex - 1;
-      if (swapIndex < 0 || swapIndex >= updated.length) {
-        continue;
-      }
-
-      updated = updated.map((element, index) => {
-        if (index === currentIndex) {
-          return { ...element, zIndex: updated[swapIndex]!.zIndex };
-        }
-        if (index === swapIndex) {
-          return { ...element, zIndex: updated[currentIndex]!.zIndex };
-        }
-        return element;
-      });
-      updated = normalizeZIndices(updated);
-    }
-  };
-
-  if (mode === "forward") {
-    moveOneStep("forward");
-  } else if (mode === "backward") {
-    moveOneStep("backward");
-  } else if (mode === "front") {
-    const selectedOrdered = [...existingSelectedIds].sort(compareSelectedIds);
-    const maxZIndex = Math.max(...updated.map((element) => element.zIndex));
-    const zIndexById = new Map<string, number>();
-    selectedOrdered.forEach((id, index) => {
-      zIndexById.set(id, maxZIndex + 1 + index);
-    });
-    updated = updated.map((element) => {
-      const nextZIndex = zIndexById.get(element.id);
-      return nextZIndex !== undefined ? { ...element, zIndex: nextZIndex } : element;
-    });
+  if (mode === "front") {
+    ordered = [...unselectedInOrder, ...selectedInOrder];
+  } else if (mode === "back") {
+    ordered = [...selectedInOrder, ...unselectedInOrder];
   } else {
-    updated = updated.map((element) =>
-      selectedSet.has(element.id) ? { ...element, zIndex: -1_000_000 } : element,
-    );
+    const selectedIndices = ordered
+      .map((element, index) => (isSelected(element) ? index : -1))
+      .filter((index) => index >= 0);
+    const minIdx = selectedIndices[0]!;
+    const maxIdx = selectedIndices[selectedIndices.length - 1]!;
+
+    if (mode === "forward" && maxIdx < ordered.length - 1) {
+      const before = ordered.slice(0, minIdx);
+      const block = ordered.slice(minIdx, maxIdx + 1);
+      const elementAbove = ordered[maxIdx + 1]!;
+      const after = ordered.slice(maxIdx + 2);
+      ordered = [...before, elementAbove, ...block, ...after];
+    } else if (mode === "backward" && minIdx > 0) {
+      const before = ordered.slice(0, minIdx - 1);
+      const elementBelow = ordered[minIdx - 1]!;
+      const block = ordered.slice(minIdx, maxIdx + 1);
+      const after = ordered.slice(maxIdx + 1);
+      ordered = [...before, ...block, elementBelow, ...after];
+    }
   }
 
-  return normalizeZIndices(updated);
+  return ordered.map((element, index) => ({ ...element, zIndex: index }));
 }
 
 function duplicateElementsForSlide(
@@ -307,9 +232,7 @@ function duplicateElementsForSlide(
   usedIds: Set<string>,
 ): SlideElement[] {
   const maxZIndex = allElements.reduce((max, element) => Math.max(max, element.zIndex), -1);
-  const selectedOrdered = [...selectedElements].sort(
-    (left, right) => left.zIndex - right.zIndex || left.id.localeCompare(right.id),
-  );
+  const selectedOrdered = stableSortByZIndex(selectedElements);
 
   return selectedOrdered.map((element, index) => {
     const id = generateUniqueId(usedIds);
@@ -403,7 +326,8 @@ function createEditorStateCreator(initial?: EditorInitialState) {
             return state;
           }
 
-          const slide = createSlide();
+          const usedIds = collectPresentationIds(state.presentation);
+          const slide = createSlide([], usedIds);
           return {
             presentation: {
               ...state.presentation,
@@ -419,6 +343,10 @@ function createEditorStateCreator(initial?: EditorInitialState) {
       },
       duplicateSlide: (slideId) => {
         set((state) => {
+          if (state.presentation.slides.length >= MAX_SLIDES) {
+            return state;
+          }
+
           const slideIndex = state.presentation.slides.findIndex((slide) => slide.id === slideId);
           if (slideIndex === -1) {
             return state;
@@ -635,6 +563,11 @@ function createEditorStateCreator(initial?: EditorInitialState) {
           const selectedElements = activeSlide.elements.filter((element) =>
             selected.has(element.id),
           );
+
+          if (activeSlide.elements.length + selectedElements.length > MAX_ELEMENTS_PER_SLIDE) {
+            return state;
+          }
+
           const usedIds = collectPresentationIds(state.presentation);
           const duplicates = duplicateElementsForSlide(
             activeSlide.elements,
@@ -820,32 +753,12 @@ function attachTemporalSelectionNormalization(store: EditorStoreApi): EditorStor
 
   store.temporal.setState({
     undo: () => {
-      const beforeState = store.getState();
-      const previousPresentation = beforeState.presentation;
-      const previousSelection = [...beforeState.selectedElementIds];
       undo();
-      const afterState = store.getState();
-      store.setState({
-        selectedElementIds: normalizeSelectionAfterTemporalRestore(
-          afterState,
-          previousPresentation,
-          previousSelection,
-        ),
-      });
+      store.setState(normalizeAfterTemporalRestore(store.getState()));
     },
     redo: () => {
-      const beforeState = store.getState();
-      const previousPresentation = beforeState.presentation;
-      const previousSelection = [...beforeState.selectedElementIds];
       redo();
-      const afterState = store.getState();
-      store.setState({
-        selectedElementIds: normalizeSelectionAfterTemporalRestore(
-          afterState,
-          previousPresentation,
-          previousSelection,
-        ),
-      });
+      store.setState(normalizeAfterTemporalRestore(store.getState()));
     },
   });
 
