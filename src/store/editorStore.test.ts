@@ -546,6 +546,85 @@ describe("createEditorStore", () => {
     expect(elements.map((el) => el.zIndex)).toEqual([0, 1, 2]);
   });
 
+  function buildFourLayerPresentation(): Presentation {
+    idCounter = 0;
+    setIdGenerator(() => `layer-${++idCounter}`);
+    const presentation = createPresentation("Layers");
+    const slide = presentation.slides[0]!;
+    slide.elements = [
+      createTextElement(slide.elements, { content: "A", zIndex: 0 }),
+      createTextElement(slide.elements, { content: "B", zIndex: 1 }),
+      createTextElement(slide.elements, { content: "C", zIndex: 2 }),
+      createTextElement(slide.elements, { content: "D", zIndex: 3 }),
+    ];
+    resetIdGenerator();
+    return presentation;
+  }
+
+  function contentOrder(elements: SlideElement[]): string[] {
+    return [...elements]
+      .sort((left, right) => left.zIndex - right.zIndex)
+      .map((element) => element.content ?? "");
+  }
+
+  it("non-contiguous bringForward swaps each selected item with next unselected neighbor", () => {
+    const store = createEditorStore({ presentation: buildFourLayerPresentation() });
+    const elements = getActiveElements(store);
+    const [a, , c] = elements;
+    store.getState().setSelection([a!.id, c!.id]);
+    store.getState().bringForward();
+    expect(contentOrder(getActiveElements(store))).toEqual(["B", "A", "D", "C"]);
+    expect(getActiveElements(store).map((el) => el.zIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("non-contiguous sendBackward swaps each selected item with previous unselected neighbor", () => {
+    const store = createEditorStore({ presentation: buildFourLayerPresentation() });
+    const elements = getActiveElements(store);
+    const [, b, , d] = elements;
+    store.getState().setSelection([b!.id, d!.id]);
+    store.getState().sendBackward();
+    expect(contentOrder(getActiveElements(store))).toEqual(["B", "A", "D", "C"]);
+    expect(getActiveElements(store).map((el) => el.zIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("non-contiguous bringToFront keeps unselected order then selected order", () => {
+    const store = createEditorStore({ presentation: buildFourLayerPresentation() });
+    const elements = getActiveElements(store);
+    const [a, , c] = elements;
+    store.getState().setSelection([a!.id, c!.id]);
+    store.getState().bringToFront();
+    expect(contentOrder(getActiveElements(store))).toEqual(["B", "D", "A", "C"]);
+    expect(getActiveElements(store).map((el) => el.zIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("non-contiguous sendToBack keeps selected order then unselected order", () => {
+    const store = createEditorStore({ presentation: buildFourLayerPresentation() });
+    const elements = getActiveElements(store);
+    const [a, , c] = elements;
+    store.getState().setSelection([a!.id, c!.id]);
+    store.getState().sendToBack();
+    expect(contentOrder(getActiveElements(store))).toEqual(["A", "C", "B", "D"]);
+    expect(getActiveElements(store).map((el) => el.zIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("bringForward at top boundary leaves order unchanged for boundary selection", () => {
+    const store = createEditorStore({ presentation: buildFourLayerPresentation() });
+    const elements = getActiveElements(store);
+    const [, , , d] = elements;
+    store.getState().setSelection([d!.id]);
+    store.getState().bringForward();
+    expect(contentOrder(getActiveElements(store))).toEqual(["A", "B", "C", "D"]);
+  });
+
+  it("sendBackward at bottom boundary leaves order unchanged for boundary selection", () => {
+    const store = createEditorStore({ presentation: buildFourLayerPresentation() });
+    const elements = getActiveElements(store);
+    const [a] = elements;
+    store.getState().setSelection([a!.id]);
+    store.getState().sendBackward();
+    expect(contentOrder(getActiveElements(store))).toEqual(["A", "B", "C", "D"]);
+  });
+
   it("z-order does not use lexical id tie-break for equal zIndex", () => {
     const store = createEditorStore({ presentation: buildPresentation() });
     const slideId = store.getState().activeSlideId;

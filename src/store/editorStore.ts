@@ -201,25 +201,41 @@ function applyZOrderChange(
     ordered = [...unselectedInOrder, ...selectedInOrder];
   } else if (mode === "back") {
     ordered = [...selectedInOrder, ...unselectedInOrder];
-  } else {
-    const selectedIndices = ordered
-      .map((element, index) => (isSelected(element) ? index : -1))
-      .filter((index) => index >= 0);
-    const minIdx = selectedIndices[0]!;
-    const maxIdx = selectedIndices[selectedIndices.length - 1]!;
+  } else if (mode === "forward") {
+    ordered = [...ordered];
+    for (let index = ordered.length - 1; index >= 0; index -= 1) {
+      if (!isSelected(ordered[index]!)) {
+        continue;
+      }
 
-    if (mode === "forward" && maxIdx < ordered.length - 1) {
-      const before = ordered.slice(0, minIdx);
-      const block = ordered.slice(minIdx, maxIdx + 1);
-      const elementAbove = ordered[maxIdx + 1]!;
-      const after = ordered.slice(maxIdx + 2);
-      ordered = [...before, elementAbove, ...block, ...after];
-    } else if (mode === "backward" && minIdx > 0) {
-      const before = ordered.slice(0, minIdx - 1);
-      const elementBelow = ordered[minIdx - 1]!;
-      const block = ordered.slice(minIdx, maxIdx + 1);
-      const after = ordered.slice(maxIdx + 1);
-      ordered = [...before, ...block, elementBelow, ...after];
+      let nextIndex = index + 1;
+      while (nextIndex < ordered.length && isSelected(ordered[nextIndex]!)) {
+        nextIndex += 1;
+      }
+
+      if (nextIndex < ordered.length) {
+        const current = ordered[index]!;
+        ordered[index] = ordered[nextIndex]!;
+        ordered[nextIndex] = current;
+      }
+    }
+  } else if (mode === "backward") {
+    ordered = [...ordered];
+    for (let index = 0; index < ordered.length; index += 1) {
+      if (!isSelected(ordered[index]!)) {
+        continue;
+      }
+
+      let previousIndex = index - 1;
+      while (previousIndex >= 0 && isSelected(ordered[previousIndex]!)) {
+        previousIndex -= 1;
+      }
+
+      if (previousIndex >= 0) {
+        const current = ordered[index]!;
+        ordered[index] = ordered[previousIndex]!;
+        ordered[previousIndex] = current;
+      }
     }
   }
 

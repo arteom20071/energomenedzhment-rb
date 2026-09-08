@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  collectPresentationIds,
   createImageElement,
   createPresentation,
   createShapeElement,
   createSlide,
   createTextElement,
   generateId,
+  generateUniqueId,
   resetIdGenerator,
   setIdGenerator,
 } from "./factories";
+import type { SlideElement } from "./presentation";
 import { parsePresentation } from "./presentation";
 
 describe("generateId", () => {
@@ -136,6 +139,109 @@ describe("factories", () => {
         allIds.add(element.id);
       }
     }
+    resetIdGenerator();
+  });
+});
+
+const baseElement = (id: string, type: SlideElement["type"] = "text"): SlideElement => ({
+  id,
+  type,
+  x: 0,
+  y: 0,
+  width: 10,
+  height: 10,
+  rotation: 0,
+  zIndex: 0,
+  styles: {},
+});
+
+describe("generateUniqueId", () => {
+  it("returns unused id when more than 1000 suffixed candidates are occupied", () => {
+    setIdGenerator(() => "dup");
+    const usedIds = new Set<string>(["dup"]);
+    for (let attempt = 1; attempt <= 1000; attempt += 1) {
+      usedIds.add(`dup-${attempt}`);
+    }
+
+    const id = generateUniqueId(usedIds);
+
+    expect(usedIds.has(id)).toBe(false);
+    expect(id).toBe("dup-1001");
+    resetIdGenerator();
+  });
+
+  it("never returns unchecked fallback ids when suffix space is exhausted up to 1000", () => {
+    setIdGenerator(() => "dup");
+    const usedIds = new Set<string>(["dup"]);
+    for (let attempt = 1; attempt <= 1000; attempt += 1) {
+      usedIds.add(`dup-${attempt}`);
+    }
+
+    const id = generateUniqueId(usedIds);
+
+    expect(id).not.toMatch(/fallback/);
+    resetIdGenerator();
+  });
+});
+
+describe("element factory id collision safety", () => {
+  it("createTextElement avoids existing element ids when generator repeats", () => {
+    setIdGenerator(() => "same-id");
+    const existing = [baseElement("same-id")];
+    const element = createTextElement(existing);
+    expect(element.id).not.toBe("same-id");
+    expect(existing.some((item) => item.id === element.id)).toBe(false);
+    resetIdGenerator();
+  });
+
+  it("createShapeElement avoids existing element ids when generator repeats", () => {
+    setIdGenerator(() => "same-id");
+    const existing = [baseElement("same-id", "shape")];
+    const element = createShapeElement(existing);
+    expect(element.id).not.toBe("same-id");
+    expect(existing.some((item) => item.id === element.id)).toBe(false);
+    resetIdGenerator();
+  });
+
+  it("createImageElement avoids existing element ids when generator repeats", () => {
+    setIdGenerator(() => "same-id");
+    const existing = [baseElement("same-id", "image")];
+    const element = createImageElement(existing);
+    expect(element.id).not.toBe("same-id");
+    expect(existing.some((item) => item.id === element.id)).toBe(false);
+    resetIdGenerator();
+  });
+
+  it("replaces colliding explicit id overrides with a unique id", () => {
+    setIdGenerator(() => "generated");
+    const existing = [baseElement("occupied")];
+    const element = createTextElement(existing, { id: "occupied" });
+    expect(element.id).not.toBe("occupied");
+    expect(existing.some((item) => item.id === element.id)).toBe(false);
+    resetIdGenerator();
+  });
+
+  it("creates unique ids across a full presentation graph when generator repeats", () => {
+    setIdGenerator(() => "dup");
+    const presentation = createPresentation("Graph Collision");
+    const slide = presentation.slides[0]!;
+    const occupiedIds = collectPresentationIds(presentation);
+
+    const text = createTextElement(slide.elements, {}, occupiedIds);
+    expect(occupiedIds.has(text.id)).toBe(false);
+    occupiedIds.add(text.id);
+    slide.elements.push(text);
+
+    const shape = createShapeElement(slide.elements, {}, occupiedIds);
+    expect(occupiedIds.has(shape.id)).toBe(false);
+    occupiedIds.add(shape.id);
+    slide.elements.push(shape);
+
+    const image = createImageElement(slide.elements, {}, occupiedIds);
+    expect(occupiedIds.has(image.id)).toBe(false);
+    slide.elements.push(image);
+
+    expect(parsePresentation({ ...presentation, slides: [{ ...slide }] }).success).toBe(true);
     resetIdGenerator();
   });
 });

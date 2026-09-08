@@ -35,14 +35,12 @@ export function generateUniqueId(usedIds: Set<string>): string {
     return baseId;
   }
 
-  for (let attempt = 1; attempt <= 1000; attempt += 1) {
-    const candidate = `${baseId}-${attempt}`;
-    if (!usedIds.has(candidate)) {
-      return candidate;
-    }
+  let attempt = 1;
+  while (usedIds.has(`${baseId}-${attempt}`)) {
+    attempt += 1;
   }
 
-  return `${baseId}-fallback-${usedIds.size}`;
+  return `${baseId}-${attempt}`;
 }
 
 function nextZIndex(elements: SlideElement[]): number {
@@ -87,17 +85,51 @@ export function createPresentation(title = "Untitled presentation"): Presentatio
 type ElementOverrides = Partial<
   Pick<
     SlideElement,
-    "x" | "y" | "width" | "height" | "rotation" | "zIndex" | "animation" | "content" | "styles"
+    | "id"
+    | "x"
+    | "y"
+    | "width"
+    | "height"
+    | "rotation"
+    | "zIndex"
+    | "animation"
+    | "content"
+    | "styles"
   >
 >;
+
+function collectUsedElementIds(existingElements: SlideElement[]): Set<string> {
+  return new Set(existingElements.map((element) => element.id));
+}
+
+function createUsedIdSet(
+  existingElements: SlideElement[],
+  occupiedIds?: Iterable<string>,
+): Set<string> {
+  const usedIds = collectUsedElementIds(existingElements);
+  if (occupiedIds) {
+    for (const id of occupiedIds) {
+      usedIds.add(id);
+    }
+  }
+  return usedIds;
+}
 
 function createBaseElement(
   type: SlideElementType,
   existingElements: SlideElement[],
   overrides: ElementOverrides = {},
+  occupiedIds?: Iterable<string>,
 ): SlideElement {
+  const usedIds = createUsedIdSet(existingElements, occupiedIds);
+  const requestedId = overrides.id;
+  const id =
+    requestedId !== undefined && !usedIds.has(requestedId)
+      ? requestedId
+      : generateUniqueId(usedIds);
+
   return {
-    id: generateId(),
+    id,
     type,
     x: overrides.x ?? 100,
     y: overrides.y ?? 100,
@@ -114,6 +146,7 @@ function createBaseElement(
 export function createTextElement(
   existingElements: SlideElement[] = [],
   overrides: ElementOverrides = {},
+  occupiedIds?: Iterable<string>,
 ): SlideElement {
   return createBaseElement("text", existingElements, {
     height: 80,
@@ -124,12 +157,13 @@ export function createTextElement(
       fontFamily: "Inter, sans-serif",
     },
     ...overrides,
-  });
+  }, occupiedIds);
 }
 
 export function createShapeElement(
   existingElements: SlideElement[] = [],
   overrides: ElementOverrides = {},
+  occupiedIds?: Iterable<string>,
 ): SlideElement {
   return createBaseElement("shape", existingElements, {
     width: 240,
@@ -139,12 +173,13 @@ export function createShapeElement(
       borderRadius: 8,
     },
     ...overrides,
-  });
+  }, occupiedIds);
 }
 
 export function createImageElement(
   existingElements: SlideElement[] = [],
   overrides: ElementOverrides = {},
+  occupiedIds?: Iterable<string>,
 ): SlideElement {
   return createBaseElement("image", existingElements, {
     width: 480,
@@ -154,7 +189,7 @@ export function createImageElement(
       alt: "",
     },
     ...overrides,
-  });
+  }, occupiedIds);
 }
 
 export function collectPresentationIds(presentation: Presentation): Set<string> {
