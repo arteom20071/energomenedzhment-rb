@@ -767,14 +767,25 @@ function attachPresentationHistoryClear(store: EditorStoreApi): EditorStoreApi {
 function attachTemporalSelectionNormalization(store: EditorStoreApi): EditorStoreApi {
   const { undo, redo } = store.temporal.getState();
 
+  const markDirtyIfPresentationChanged = (before: Presentation) => {
+    const after = store.getState().presentation;
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      store.setState({ saveStatus: "dirty" });
+    }
+  };
+
   store.temporal.setState({
     undo: () => {
+      const before = store.getState().presentation;
       undo();
       store.setState(normalizeAfterTemporalRestore(store.getState()));
+      markDirtyIfPresentationChanged(before);
     },
     redo: () => {
+      const before = store.getState().presentation;
       redo();
       store.setState(normalizeAfterTemporalRestore(store.getState()));
+      markDirtyIfPresentationChanged(before);
     },
   });
 

@@ -49,10 +49,23 @@ export type ParsePresentationResult =
 
 const FORBIDDEN_STYLE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
+function isCycle(value: object, ancestors: WeakSet<object>): boolean {
+  return ancestors.has(value);
+}
+
+function enterObject(value: object, ancestors: WeakSet<object>): void {
+  ancestors.add(value);
+}
+
+function exitObject(value: object, ancestors: WeakSet<object>): void {
+  ancestors.delete(value);
+}
+
 function collectJsonUnsafeStyleErrors(
   value: unknown,
   path: (string | number)[],
   context: z.RefinementCtx,
+  ancestors: WeakSet<object> = new WeakSet(),
 ): void {
   if (value === null) {
     return;
@@ -94,13 +107,33 @@ function collectJsonUnsafeStyleErrors(
   }
 
   if (Array.isArray(value)) {
+    if (isCycle(value, ancestors)) {
+      context.addIssue({
+        code: "custom",
+        message: "styles contain a cycle",
+        path,
+      });
+      return;
+    }
+
+    enterObject(value, ancestors);
     value.forEach((item, index) => {
-      collectJsonUnsafeStyleErrors(item, [...path, index], context);
+      collectJsonUnsafeStyleErrors(item, [...path, index], context, ancestors);
     });
+    exitObject(value, ancestors);
     return;
   }
 
   if (valueType === "object") {
+    if (isCycle(value, ancestors)) {
+      context.addIssue({
+        code: "custom",
+        message: "styles contain a cycle",
+        path,
+      });
+      return;
+    }
+
     if (Object.getPrototypeOf(value) !== Object.prototype && !Array.isArray(value)) {
       context.addIssue({
         code: "custom",
@@ -110,6 +143,7 @@ function collectJsonUnsafeStyleErrors(
       return;
     }
 
+    enterObject(value, ancestors);
     for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
       if (FORBIDDEN_STYLE_KEYS.has(key)) {
         context.addIssue({
@@ -118,8 +152,9 @@ function collectJsonUnsafeStyleErrors(
           path: [...path, key],
         });
       }
-      collectJsonUnsafeStyleErrors(nestedValue, [...path, key], context);
+      collectJsonUnsafeStyleErrors(nestedValue, [...path, key], context, ancestors);
     }
+    exitObject(value, ancestors);
   }
 }
 
@@ -185,32 +220,58 @@ function formatForbiddenPath(path: string): string {
     .replace(/\.(\d+)(?=\.|$)/g, "[$1]");
 }
 
-function collectForbiddenKeyErrors(input: unknown, path = "(root)"): ValidationError[] {
+function collectForbiddenKeyErrors(
+  input: unknown,
+  path = "(root)",
+  ancestors: WeakSet<object> = new WeakSet(),
+): ValidationError[] {
   if (input === null || typeof input !== "object") {
     return [];
   }
 
+  if (isCycle(input, ancestors)) {
+    return [
+      {
+        path: formatForbiddenPath(path),
+        message: "Cycle detected",
+      },
+    ];
+  }
+
+  enterObject(input, ancestors);
+
+  let errors: ValidationError[];
+
   if (Array.isArray(input)) {
-    return input.flatMap((item, index) => collectForbiddenKeyErrors(item, `${path}[${index}]`));
+    errors = input.flatMap((item, index) =>
+      collectForbiddenKeyErrors(item, `${path}[${index}]`, ancestors),
+    );
+  } else {
+    errors = [];
+
+    for (const key of Reflect.ownKeys(input)) {
+      if (typeof key !== "string") {
+        continue;
+      }
+
+      if (FORBIDDEN_STYLE_KEYS.has(key)) {
+        errors.push({
+          path: formatForbiddenPath(`${path}.${key}`),
+          message: `Forbidden key: ${key}`,
+        });
+      }
+
+      errors.push(
+        ...collectForbiddenKeyErrors(
+          (input as Record<string, unknown>)[key],
+          `${path}.${key}`,
+          ancestors,
+        ),
+      );
+    }
   }
 
-  const errors: ValidationError[] = [];
-
-  for (const key of Reflect.ownKeys(input)) {
-    if (typeof key !== "string") {
-      continue;
-    }
-
-    if (FORBIDDEN_STYLE_KEYS.has(key)) {
-      errors.push({
-        path: formatForbiddenPath(`${path}.${key}`),
-        message: `Forbidden key: ${key}`,
-      });
-    }
-
-    errors.push(...collectForbiddenKeyErrors((input as Record<string, unknown>)[key], `${path}.${key}`));
-  }
-
+  exitObject(input, ancestors);
   return errors;
 }
 

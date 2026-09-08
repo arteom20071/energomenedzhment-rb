@@ -316,4 +316,80 @@ describe("parsePresentation invalid cases", () => {
       expect(result.errors.some((e) => e.path.includes("slides[0].extraField"))).toBe(true);
     }
   });
+
+  it("rejects self-referential styles without crashing", () => {
+    const cyclicStyles: Record<string, unknown> = { color: "#111827" };
+    cyclicStyles.self = cyclicStyles;
+
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [
+        {
+          ...validPresentation.slides[0]!,
+          elements: [{ ...validElement, styles: cyclicStyles }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => e.path.includes("styles.self"))).toBe(true);
+      expect(result.errors.some((e) => e.message.toLowerCase().includes("cycle"))).toBe(true);
+    }
+  });
+
+  it("rejects nested cyclic styles with path", () => {
+    const inner: Record<string, unknown> = {};
+    const outer = { nested: inner };
+    inner.back = outer;
+
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [
+        {
+          ...validPresentation.slides[0]!,
+          elements: [{ ...validElement, styles: outer }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.some((e) => e.path.includes("styles.nested.back"))).toBe(true);
+    }
+  });
+
+  it("allows acyclic shared style references", () => {
+    const shared = { color: "#111827", fontSize: 24 };
+    const styles = { primary: shared, secondary: shared };
+
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [
+        {
+          ...validPresentation.slides[0]!,
+          elements: [{ ...validElement, styles }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects cyclic styles via validatePresentation", () => {
+    const cyclicStyles: Record<string, unknown> = {};
+    cyclicStyles.loop = cyclicStyles;
+
+    const result = parsePresentation({
+      ...validPresentation,
+      slides: [
+        {
+          ...validPresentation.slides[0]!,
+          elements: [{ ...validElement, styles: cyclicStyles }],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

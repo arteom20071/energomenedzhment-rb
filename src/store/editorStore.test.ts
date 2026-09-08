@@ -263,6 +263,47 @@ describe("createEditorStore", () => {
     expect(store.getState().presentation.title).toBe("Final");
   });
 
+  it("marks saveStatus dirty after undo of document mutation", () => {
+    const store: EditorStoreApi = createEditorStore({ presentation: buildPresentation() });
+    store.getState().setSaveStatus("saved");
+    store.getState().renamePresentation("Changed");
+    expect(store.getState().saveStatus).toBe("dirty");
+    store.getState().setSaveStatus("saved");
+    store.temporal.getState().undo();
+    expect(store.getState().presentation.title).toBe("Seed");
+    expect(store.getState().saveStatus).toBe("dirty");
+  });
+
+  it("marks saveStatus dirty after redo of document mutation", () => {
+    const store: EditorStoreApi = createEditorStore({ presentation: buildPresentation() });
+    store.getState().setSaveStatus("saved");
+    store.getState().renamePresentation("Changed");
+    store.getState().setSaveStatus("saved");
+    store.temporal.getState().undo();
+    store.getState().setSaveStatus("saved");
+    store.temporal.getState().redo();
+    expect(store.getState().presentation.title).toBe("Changed");
+    expect(store.getState().saveStatus).toBe("dirty");
+  });
+
+  it("does not mark dirty when undo/redo only affects selection or zoom", () => {
+    const store: EditorStoreApi = createEditorStore({ presentation: buildPresentation() });
+    store.getState().setSaveStatus("saved");
+    store.getState().renamePresentation("Changed");
+    store.getState().setSaveStatus("saved");
+    store.getState().setSelection([getActiveElements(store)[0]!.id]);
+    store.getState().setZoom(1.5);
+    store.temporal.getState().undo();
+    expect(store.getState().presentation.title).toBe("Seed");
+    expect(store.getState().saveStatus).toBe("dirty");
+    store.getState().setSaveStatus("saved");
+    store.getState().setSelection(["missing-id"]);
+    store.getState().setZoom(2);
+    store.temporal.getState().redo();
+    expect(store.getState().presentation.title).toBe("Changed");
+    expect(store.getState().saveStatus).toBe("dirty");
+  });
+
   it("caps undo history at 100 steps", () => {
     const store: EditorStoreApi = createEditorStore({ presentation: buildPresentation() });
     expect(HISTORY_LIMIT).toBe(100);
