@@ -2,7 +2,7 @@
 import { existsSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   CANVAS_HEIGHT,
@@ -12,9 +12,25 @@ import {
   type Slide,
   type SlideElement,
 } from "../domain/presentation";
-import { energyManagementPresentation } from "./energyManagement";
+import {
+  energyManagementPresentation,
+  resolveSeedAssetUrl,
+} from "./energyManagement";
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+const EXPECTED_FIXED_IDS = [
+  "em-pres",
+  "em-slide-01",
+  "em-slide-02",
+  "em-slide-03",
+  "em-slide-04",
+  "em-slide-05",
+  "em-slide-06",
+  "em-slide-07",
+  "em-slide-08",
+  "em-slide-09",
+] as const;
 
 const EXPECTED_SLIDES: Array<{
   titleAnchor: string;
@@ -27,32 +43,63 @@ const EXPECTED_SLIDES: Array<{
   },
   {
     titleAnchor: "Нормативно-правовой базис энергоэффективности в РБ",
-    contentAnchors: ["239-З", "ГОСТ ISO 50001-2021", "4-энергосбережение"],
+    contentAnchors: [
+      "изм. № 111-З",
+      "energoeffect.gov.by",
+      "СТБ 1774",
+      "300 т у.т.",
+      "1 500 т у.т. (ст. 19)",
+    ],
   },
   {
     titleAnchor: "Критерии обязательности и периодичность",
-    contentAnchors: ["1 500", "5 лет", "≥ 3", "ГОСТ ISO 50001-2021"],
+    contentAnchors: [
+      "юрлицо в графике обязательного обследования",
+      "РОГУ, облисполкомов",
+      "экспресс-энергоаудит",
+      "предложения по прогрессивным нормам",
+    ],
   },
   {
     titleAnchor: "Задачи и поэтапный алгоритм энергоаудита",
     contentAnchors: [
-      "Документарный анализ",
-      "Инструментальное обследование",
-      "Энергетический баланс",
-      "ТЭО мероприятий",
+      "не менее 36 мес.",
+      "сверхнормативных холостых ходов",
+      "неучтенного расхода",
+      "NPV при необходимости",
+      "энергетический паспорт объекта",
     ],
   },
   {
     titleAnchor: "Инструментальный парк и контрольные замеры",
-    contentAnchors: ["≥ 3", "Тепловизионная", "Ультразвуковая", "ГОСТ 32144"],
+    contentAnchors: [
+      "законодательной метрологии",
+      "футеровка печей",
+      "clamp-on",
+      "несимметрия",
+    ],
   },
   {
     titleAnchor: "СЭнМ по ГОСТ ISO 50001-2021",
-    contentAnchors: ["Plan", "Do", "Check", "Act", "PDCA"],
+    contentAnchors: [
+      "Энергополитика высшего руководства",
+      "Операционное управление SEU",
+      "анализ отклонений",
+      "анализ за 3 года + приоритеты экономии",
+    ],
   },
   {
     titleAnchor: "Нормирование ТЭР и классификация мероприятий",
-    contentAnchors: ["1 500", "Е-Паслуга", "≤ 1 г.", "CAPEX"],
+    contentAnchors: [
+      "≥ 50 тыс. т у.т.",
+      "< 300 т у.т.",
+      "300–50 000 т у.т.",
+      "Минское городское управления",
+      "«Е-Паслуга»",
+      "отключение холостого хода",
+      "тягодутьевых механизмах",
+      "вторичных энергоресурсов",
+    ],
   },
   {
     titleAnchor: "Организационная структура энергослужбы предприятия",
@@ -65,6 +112,7 @@ const EXPECTED_SLIDES: Array<{
 ];
 
 const SUPPORTED_TRANSITIONS = new Set(["fade", "slide", "zoom", "none"]);
+const FORBIDDEN_STYLE_KEYS = ["textTransform", "fontStyle"] as const;
 
 function collectTextContent(slide: Slide): string {
   return slide.elements
@@ -100,6 +148,22 @@ function collectAllIds(presentation: Presentation): string[] {
   return ids;
 }
 
+describe("resolveSeedAssetUrl", () => {
+  it("resolves base-relative paths under a GitHub Pages /repo/ base", () => {
+    const path = "assets/images/slide-1-schema.svg";
+    expect(resolveSeedAssetUrl(path, "/repo/")).toBe(
+      "/repo/assets/images/slide-1-schema.svg",
+    );
+    expect(resolveSeedAssetUrl(path, "/repo/")).not.toBe("/assets/images/slide-1-schema.svg");
+  });
+
+  it("normalizes root base to an absolute /assets path", () => {
+    expect(resolveSeedAssetUrl("assets/images/slide-2-legal.svg", "/")).toBe(
+      "/assets/images/slide-2-legal.svg",
+    );
+  });
+});
+
 describe("energyManagementPresentation seed", () => {
   it("exports a presentation that passes parsePresentation", () => {
     const result = parsePresentation(energyManagementPresentation);
@@ -126,6 +190,13 @@ describe("energyManagementPresentation seed", () => {
     expect(energyManagementPresentation.title).toContain("Беларусь");
   });
 
+  it("uses fixed static presentation and slide ids", () => {
+    expect(energyManagementPresentation.id).toBe("em-pres");
+    expect(energyManagementPresentation.slides.map((slide) => slide.id)).toEqual([
+      ...EXPECTED_FIXED_IDS.slice(1),
+    ]);
+  });
+
   it("assigns globally unique ids", () => {
     const ids = collectAllIds(energyManagementPresentation);
     expect(new Set(ids).size).toBe(ids.length);
@@ -145,7 +216,7 @@ describe("energyManagementPresentation seed", () => {
     }
   });
 
-  it("includes one resolvable image per slide and separate editable text", () => {
+  it("stores base-relative image paths and resolves files on disk", () => {
     energyManagementPresentation.slides.forEach((slide, index) => {
       const images = slide.elements.filter((element) => element.type === "image");
       const texts = slide.elements.filter((element) => element.type === "text");
@@ -154,11 +225,35 @@ describe("energyManagementPresentation seed", () => {
       expect(texts.length).toBeGreaterThanOrEqual(2);
 
       const image = images[0]!;
-      expect(image.content).toBeTruthy();
+      expect(image.content).toMatch(/^assets\/images\//);
+      expect(image.content).not.toMatch(/^\//);
+
       const filePath = resolveImagePath(image.content!);
       expect(existsSync(filePath)).toBe(true);
       expect(filePath).toMatch(new RegExp(`slide-${index + 1}-`));
     });
+  });
+
+  it("assigns nonempty descriptive alt text to every image", () => {
+    const images = energyManagementPresentation.slides.flatMap((slide) =>
+      slide.elements.filter((element) => element.type === "image"),
+    );
+    expect(images).toHaveLength(9);
+    for (const image of images) {
+      const alt = image.styles.alt;
+      expect(typeof alt).toBe("string");
+      expect((alt as string).trim().length).toBeGreaterThan(10);
+    }
+  });
+
+  it("does not use unsupported text style keys", () => {
+    for (const slide of energyManagementPresentation.slides) {
+      for (const element of slide.elements) {
+        for (const key of FORBIDDEN_STYLE_KEYS) {
+          expect(element.styles).not.toHaveProperty(key);
+        }
+      }
+    }
   });
 
   it("includes at least one visual element per slide and unique zIndex within slide", () => {
@@ -194,11 +289,14 @@ describe("energyManagementPresentation seed", () => {
     expect(animated.length).toBeGreaterThanOrEqual(9);
   });
 
-  it("serializes deterministically across reloads", () => {
+  it("remains byte-identical after module reimport", async () => {
     const first = JSON.stringify(energyManagementPresentation);
-    const second = JSON.stringify(
-      JSON.parse(first) as typeof energyManagementPresentation,
+    vi.resetModules();
+    const { energyManagementPresentation: reloaded } = await import("./energyManagement");
+    expect(JSON.stringify(reloaded)).toBe(first);
+    expect(reloaded.id).toBe("em-pres");
+    expect(reloaded.slides[6]!.elements.find((e) => e.id === "em-s07-norms-b")?.content).toContain(
+      "300–50 000",
     );
-    expect(second).toBe(first);
   });
 });
