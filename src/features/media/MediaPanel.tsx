@@ -5,6 +5,7 @@ import {
   extractFilesFromDataTransfer,
   extractFilesFromFileInput,
 } from "./ingestion";
+import { MediaGrid } from "./MediaGrid";
 import type {
   ImageDimensionDecoder,
   MediaAsset,
@@ -17,7 +18,6 @@ import {
   defaultImageDecoder,
   validateMediaFile,
 } from "./validation";
-import { MediaGrid } from "./MediaGrid";
 
 export interface MediaPanelProps {
   repository: MediaRepository;
@@ -40,8 +40,18 @@ export function MediaPanel({
 }: MediaPanelProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const mountedRef = useRef(true);
+  const ingestGenerationRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [libraryRevision, setLibraryRevision] = useState(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const validate = useCallback(
     (file: File) => (validateFile ? validateFile(file) : validateMediaFile(file, decoder)),
@@ -54,15 +64,33 @@ export function MediaPanel({
         return;
       }
 
-      for (const file of files) {
-        const result = await validate(file);
-        if (!result.success) {
-          setError(result.error);
-          continue;
-        }
+      const generation = ++ingestGenerationRef.current;
 
-        setError(null);
-        await onAddImage(result.file);
+      for (const file of files) {
+        try {
+          const result = await validate(file);
+          if (!mountedRef.current || generation !== ingestGenerationRef.current) {
+            return;
+          }
+
+          if (!result.success) {
+            setError(result.error);
+            continue;
+          }
+
+          setError(null);
+          await onAddImage(result.file);
+
+          if (!mountedRef.current || generation !== ingestGenerationRef.current) {
+            return;
+          }
+
+          setLibraryRevision((revision) => revision + 1);
+        } catch {
+          if (mountedRef.current && generation === ingestGenerationRef.current) {
+            setError("Не удалось сохранить изображение.");
+          }
+        }
       }
     },
     [onAddImage, validate],
@@ -72,17 +100,34 @@ export function MediaPanel({
     if (!inputRef.current) {
       return;
     }
-    const files = extractFilesFromFileInput(inputRef.current);
-    await ingestFiles(files);
-    inputRef.current.value = "";
+
+    try {
+      const files = extractFilesFromFileInput(inputRef.current);
+      await ingestFiles(files);
+    } catch {
+      if (mountedRef.current) {
+        setError("Не удалось обработать выбранный файл.");
+      }
+    } finally {
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+    }
   }, [ingestFiles]);
 
   const handleDrop = useCallback(
     async (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       setIsDragging(false);
-      const files = extractFilesFromDataTransfer(event.dataTransfer);
-      await ingestFiles(files);
+
+      try {
+        const files = extractFilesFromDataTransfer(event.dataTransfer);
+        await ingestFiles(files);
+      } catch {
+        if (mountedRef.current) {
+          setError("Не удалось обработать перетаскивание файла.");
+        }
+      }
     },
     [ingestFiles],
   );
@@ -99,13 +144,19 @@ export function MediaPanel({
         return;
       }
 
-      const files = await extractFilesFromClipboardEvent(event);
-      if (files.length === 0) {
-        return;
-      }
+      try {
+        const files = await extractFilesFromClipboardEvent(event);
+        if (files.length === 0) {
+          return;
+        }
 
-      event.preventDefault();
-      await ingestFiles(files);
+        event.preventDefault();
+        await ingestFiles(files);
+      } catch {
+        if (mountedRef.current) {
+          setError("Не удалось обработать вставку из буфера обмена.");
+        }
+      }
     };
 
     window.addEventListener("paste", handlePaste);
@@ -164,6 +215,7 @@ export function MediaPanel({
       {showGrid ? (
         <MediaGrid
           repository={repository}
+          refreshKey={libraryRevision}
           onInsert={onInsert}
           onReplace={onReplace}
           onDelete={onDelete}

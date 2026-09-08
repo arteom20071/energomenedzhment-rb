@@ -1,114 +1,187 @@
-const EVENT_HANDLER_PATTERN = /^on/i;
-const UNSAFE_URI_PATTERN = /^(https?:|\/\/|javascript:|data:text\/html)/i;
+export type SanitizeSvgResult =
+  | { success: true; width: number; height: number; svg: string }
+  | { success: false; error: string };
 
-export interface SvgInspectionResult {
-  width: number;
-  height: number;
+const FORBIDDEN_TAGS = new Set(["script", "foreignobject", "style"]);
+const EVENT_HANDLER_PATTERN = /^on[a-z]/i;
+const UNSAFE_CSS_PATTERN = /url\s*\(|@import|expression\s*\(|javascript\s*:/i;
+
+function normalizeTagName(tagName: string): string {
+  return tagName.toLowerCase();
 }
 
-export function inspectSvg(svgText: string): SvgInspectionResult | { error: string } {
-  const trimmed = svgText.trim();
-  if (!trimmed.includes("<svg")) {
-    return { error: "Файл SVG не содержит корневой элемент <svg>." };
+function normalizeAttributeName(name: string): string {
+  return name.toLowerCase();
+}
+
+function isLinkAttribute(name: string): boolean {
+  const normalized = normalizeAttributeName(name);
+  return (
+    normalized === "href" ||
+    normalized === "src" ||
+    normalized === "xlink:href" ||
+    normalized === "url" ||
+    normalized.endsWith(":href")
+  );
+}
+
+function isLocalFragmentReference(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.startsWith("#") && trimmed.length > 1;
+}
+
+function isForbiddenReference(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return !isLocalFragmentReference(trimmed);
+}
+
+function preflightSource(source: string): string | null {
+  if (/<!doctype/i.test(source)) {
+    return "SVG содержит запрещённый DOCTYPE.";
+  }
+  if (/<!entity/i.test(source)) {
+    return "SVG содержит запрещённые XML-сущности.";
+  }
+  if (/<\?xml-stylesheet/i.test(source)) {
+    return "SVG содержит запрещённую инструкцию xml-stylesheet.";
+  }
+  return null;
+}
+
+function parseDimensionValue(raw: string): number | null {
+  const match = raw.trim().match(/^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/);
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return value;
+}
+
+function readSvgDimensions(
+  root: Element,
+): { width: number; height: number } | { error: string } {
+  const width = parseDimensionValue(root.getAttribute("width") ?? "");
+  const height = parseDimensionValue(root.getAttribute("height") ?? "");
+
+  if (width !== null && height !== null) {
+    return { width, height };
   }
 
-  let document: Document;
-  try {
-    document = new DOMParser().parseFromString(trimmed, "image/svg+xml");
-  } catch {
-    return { error: "Не удалось разобрать SVG." };
+  const viewBox = root.getAttribute("viewBox");
+  if (viewBox) {
+    const parts = viewBox.trim().split(/[\s,]+/);
+    if (parts.length === 4) {
+      const viewBoxWidth = parseDimensionValue(parts[2] ?? "");
+      const viewBoxHeight = parseDimensionValue(parts[3] ?? "");
+      if (viewBoxWidth !== null && viewBoxHeight !== null) {
+        return { width: viewBoxWidth, height: viewBoxHeight };
+      }
+    }
+  }
+
+  return { error: "SVG не содержит допустимых размеров или viewBox." };
+}
+
+function inspectElementTree(root: Element): string | null {
+  const elements: Element[] = [root];
+  const descendants = root.querySelectorAll("*");
+  descendants.forEach((element) => elements.push(element));
+
+  for (const element of elements) {
+    const tagName = normalizeTagName(element.tagName);
+    if (FORBIDDEN_TAGS.has(tagName)) {
+      if (tagName === "script") {
+        return "SVG содержит запрещённый элемент <script>.";
+      }
+      if (tagName === "foreignobject") {
+        return "SVG содержит запрещённый элемент foreignObject.";
+      }
+      return "SVG содержит запрещённый элемент <style>.";
+    }
+
+    for (const attribute of Array.from(element.attributes)) {
+      const attributeName = normalizeAttributeName(attribute.name);
+      const attributeValue = attribute.value;
+
+      if (EVENT_HANDLER_PATTERN.test(attributeName)) {
+        return "SVG содержит запрещённые обработчики событий.";
+      }
+
+      if (attributeName === "style" && UNSAFE_CSS_PATTERN.test(attributeValue)) {
+        return "SVG содержит небезопасные CSS-ссылки в атрибуте style.";
+      }
+
+      if (isLinkAttribute(attributeName) && isForbiddenReference(attributeValue)) {
+        return "SVG содержит запрещённые внешние ссылки.";
+      }
+    }
+  }
+
+  return null;
+}
+
+export function sanitizeSvg(source: string): SanitizeSvgResult {
+  const preflightError = preflightSource(source);
+  if (preflightError) {
+    return { success: false, error: preflightError };
+  }
+
+  const document = new DOMParser().parseFromString(source.trim(), "image/svg+xml");
+
+  if (document.querySelector("parsererror")) {
+    return { success: false, error: "Не удалось разобрать SVG." };
+  }
+
+  if (document.doctype) {
+    return { success: false, error: "SVG содержит запрещённый DOCTYPE." };
+  }
+
+  for (const child of Array.from(document.childNodes)) {
+    if (child.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+      return {
+        success: false,
+        error: "SVG содержит запрещённые инструкции обработки XML.",
+      };
+    }
   }
 
   const root = document.documentElement;
-  if (!root || root.nodeName.toLowerCase() !== "svg") {
-    return { error: "Файл SVG не содержит корневой элемент <svg>." };
+  if (!root || normalizeTagName(root.tagName) !== "svg") {
+    return { success: false, error: "Файл SVG не содержит корневой элемент <svg>." };
   }
 
-  if (root.querySelector("script")) {
-    return { error: "SVG содержит запрещённый элемент <script>." };
+  const treeError = inspectElementTree(root);
+  if (treeError) {
+    return { success: false, error: treeError };
   }
 
-  if (root.querySelector("foreignObject")) {
-    return { error: "SVG содержит запрещённый элемент foreignObject." };
+  const dimensions = readSvgDimensions(root);
+  if ("error" in dimensions) {
+    return { success: false, error: dimensions.error };
   }
 
-  const elements = root.querySelectorAll("*");
-  for (const element of elements) {
-    for (const attribute of Array.from(element.attributes)) {
-      const name = attribute.name.toLowerCase();
-      const value = attribute.value.trim();
-
-      if (EVENT_HANDLER_PATTERN.test(name)) {
-        return { error: "SVG содержит запрещённые обработчики событий." };
-      }
-
-      if (
-        (name === "href" ||
-          name === "xlink:href" ||
-          name === "src" ||
-          name.endsWith(":href")) &&
-        UNSAFE_URI_PATTERN.test(value)
-      ) {
-        return { error: "SVG содержит запрещённые внешние ссылки." };
-      }
-    }
-  }
-
-  const hrefElements = root.querySelectorAll("[href], [xlink\\:href], [src]");
-  for (const element of hrefElements) {
-    for (const attribute of Array.from(element.attributes)) {
-      const name = attribute.name.toLowerCase();
-      if (
-        name === "href" ||
-        name === "xlink:href" ||
-        name === "src" ||
-        name.endsWith(":href")
-      ) {
-        if (UNSAFE_URI_PATTERN.test(attribute.value.trim())) {
-          return { error: "SVG содержит запрещённые внешние ссылки." };
-        }
-      }
-    }
-  }
-
-  const useElements = root.querySelectorAll("use, image");
-  for (const element of useElements) {
-    for (const attribute of Array.from(element.attributes)) {
-      const name = attribute.name.toLowerCase();
-      if (name === "href" || name === "xlink:href" || name === "src") {
-        const value = attribute.value.trim();
-        if (value.startsWith("#")) {
-          continue;
-        }
-        if (UNSAFE_URI_PATTERN.test(value)) {
-          return { error: "SVG содержит запрещённые внешние ссылки." };
-        }
-      }
-    }
-  }
-
-  const width = readSvgDimension(root, "width");
-  const height = readSvgDimension(root, "height");
-
-  if (width <= 0 || height <= 0) {
-    const viewBox = root.getAttribute("viewBox");
-    if (viewBox) {
-      const parts = viewBox.split(/\s+/).map(Number);
-      if (parts.length === 4 && parts[2]! > 0 && parts[3]! > 0) {
-        return { width: parts[2]!, height: parts[3]! };
-      }
-    }
-    return { width: 512, height: 512 };
-  }
-
-  return { width, height };
+  const svg = new XMLSerializer().serializeToString(root);
+  return {
+    success: true,
+    width: dimensions.width,
+    height: dimensions.height,
+    svg,
+  };
 }
 
-function readSvgDimension(root: Element, attribute: "width" | "height"): number {
-  const raw = root.getAttribute(attribute);
-  if (!raw) {
-    return 0;
+/** @deprecated Use sanitizeSvg instead */
+export function inspectSvg(
+  svgText: string,
+): { width: number; height: number } | { error: string } {
+  const result = sanitizeSvg(svgText);
+  if (!result.success) {
+    return { error: result.error };
   }
-  const parsed = Number.parseFloat(raw.replace(/[^\d.]/g, ""));
-  return Number.isFinite(parsed) ? parsed : 0;
+  return { width: result.width, height: result.height };
 }

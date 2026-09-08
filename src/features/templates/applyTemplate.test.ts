@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { resetIdGenerator, setIdGenerator } from "../../domain/factories";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, slideSchema } from "../../domain/presentation";
-import { applyTemplate, SLIDE_TEMPLATES } from "./applyTemplate";
+import { applyTemplate, SLIDE_TEMPLATES, type SlideTemplateDefinition } from "./applyTemplate";
 
 describe("applyTemplate", () => {
   it("defines four templates", () => {
@@ -74,6 +74,43 @@ describe("applyTemplate", () => {
       JSON.stringify(element.styles).includes("#6366f1"),
     );
     expect(styled).toBe(true);
+    resetIdGenerator();
+  });
+
+  it("uses dark slide background with light text for readable contrast", () => {
+    setIdGenerator(() => "contrast-id");
+    const slide = applyTemplate("title");
+    expect(slide.background).toMatch(/#0f172a|#111827|#1e293b/i);
+
+    const textColors = slide.elements
+      .filter((element) => element.type === "text")
+      .map((element) => String(element.styles.color ?? ""));
+
+    expect(textColors.every((color) => /#f8fafc|#cbd5e1|#6366f1/i.test(color))).toBe(
+      true,
+    );
+    resetIdGenerator();
+  });
+
+  it("returns immutable template definitions", () => {
+    const templates = SLIDE_TEMPLATES;
+    expect(Object.isFrozen(templates)).toBe(true);
+    expect(() => {
+      (templates as SlideTemplateDefinition[]).push({
+        id: "title",
+        name: "Hack",
+        description: "",
+        previewColors: [],
+      });
+    }).toThrow();
+  });
+
+  it("resolves occupied id collisions when applying templates", () => {
+    setIdGenerator(() => "dup");
+    const occupied = new Set(["dup"]);
+    const slide = applyTemplate("title", occupied);
+    const ids = [slide.id, ...slide.elements.map((element) => element.id)];
+    expect(new Set(ids).size).toBe(ids.length);
     resetIdGenerator();
   });
 });

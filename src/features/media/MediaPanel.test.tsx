@@ -14,11 +14,15 @@ const sampleAsset: MediaAsset = {
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
-function createRepository(): MediaRepository {
+function createRepository(
+  overrides: Partial<MediaRepository> = {},
+): MediaRepository {
   return {
     list: vi.fn(async () => [sampleAsset]),
     getPreviewUrl: vi.fn(async () => "blob:preview"),
+    releasePreviewUrl: vi.fn(),
     delete: vi.fn(async () => undefined),
+    ...overrides,
   };
 }
 
@@ -28,13 +32,16 @@ describe("MediaPanel", () => {
       <MediaPanel
         repository={createRepository()}
         onAddImage={vi.fn()}
-        validateFile={vi.fn(async () => ({ success: true as const, file: {
-          blob: new Blob(),
-          mimeType: "image/png",
-          filename: "photo.png",
-          width: 1,
-          height: 1,
-        }}))}
+        validateFile={vi.fn(async () => ({
+          success: true as const,
+          file: {
+            blob: new Blob(),
+            mimeType: "image/png",
+            filename: "photo.png",
+            width: 1,
+            height: 1,
+          },
+        }))}
       />,
     );
 
@@ -123,5 +130,125 @@ describe("MediaPanel", () => {
     await waitFor(() => {
       expect(onAddImage).toHaveBeenCalled();
     });
+  });
+
+  it("shows Russian error for unsupported file dropped alongside supported file", async () => {
+    const validateFile = vi.fn(async (file: File) => {
+      if (file.type === "text/plain") {
+        return {
+          success: false as const,
+          error: "Неподдерживаемый тип файла. Допустимы PNG, JPEG, WebP и SVG.",
+        };
+      }
+      return {
+        success: true as const,
+        file: {
+          blob: file,
+          mimeType: "image/png",
+          filename: file.name,
+          width: 10,
+          height: 10,
+        },
+      };
+    });
+
+    render(
+      <MediaPanel
+        repository={createRepository()}
+        onAddImage={vi.fn()}
+        validateFile={validateFile}
+      />,
+    );
+
+    const dropZone = screen.getByLabelText(/перетащите/i);
+    fireEvent.drop(dropZone, {
+      dataTransfer: {
+        files: [
+          new File(["x"], "ok.png", { type: "image/png" }),
+          new File(["y"], "notes.txt", { type: "text/plain" }),
+        ],
+        items: [],
+        types: ["Files"],
+      },
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/неподдерживаем/i);
+  });
+
+  it("shows Russian error when onAddImage fails", async () => {
+    render(
+      <MediaPanel
+        repository={createRepository()}
+        onAddImage={vi.fn(async () => {
+          throw new Error("save failed");
+        })}
+        validateFile={vi.fn(async () => ({
+          success: true as const,
+          file: {
+            blob: new Blob(["x"], { type: "image/png" }),
+            mimeType: "image/png",
+            filename: "ok.png",
+            width: 10,
+            height: 10,
+          },
+        }))}
+      />,
+    );
+
+    const input = screen.getByLabelText(/выбор файла/i);
+    fireEvent.change(input, {
+      target: { files: [new File(["x"], "ok.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/сохран/i);
+  });
+
+  it("refreshes mounted grid after successful upload without repository identity change", async () => {
+    const assets: MediaAsset[] = [sampleAsset];
+    const repository = createRepository({
+      list: vi.fn(async () => assets),
+      getPreviewUrl: vi.fn(async (id: string) => `blob:${id}`),
+    });
+
+    const onAddImage = vi.fn(async () => {
+      assets.push({
+        id: "asset-2",
+        filename: "added.png",
+        mimeType: "image/png",
+        sizeBytes: 10,
+        width: 10,
+        height: 10,
+        createdAt: "2026-01-03T00:00:00.000Z",
+      });
+    });
+
+    render(
+      <MediaPanel
+        repository={repository}
+        onAddImage={onAddImage}
+        onInsert={vi.fn()}
+        onReplace={vi.fn()}
+        onDelete={vi.fn()}
+        validateFile={vi.fn(async () => ({
+          success: true as const,
+          file: {
+            blob: new Blob(["x"], { type: "image/png" }),
+            mimeType: "image/png",
+            filename: "added.png",
+            width: 10,
+            height: 10,
+          },
+        }))}
+      />,
+    );
+
+    await screen.findByText("photo.png");
+
+    const input = screen.getByLabelText(/выбор файла/i);
+    fireEvent.change(input, {
+      target: { files: [new File(["x"], "added.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByText("added.png")).toBeInTheDocument();
   });
 });

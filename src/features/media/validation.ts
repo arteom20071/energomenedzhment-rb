@@ -1,11 +1,10 @@
 import {
   ACCEPTED_MIME_TYPES,
-  extensionMatchesMime,
   inferMimeFromFilename,
   MAX_MEDIA_FILE_SIZE_BYTES,
   type AcceptedMimeType,
 } from "./constants";
-import { inspectSvg } from "./svgSanitizer";
+import { sanitizeSvg } from "./svgSanitizer";
 import type { ImageDimensionDecoder, MediaValidationResult } from "./types";
 
 export {
@@ -14,9 +13,13 @@ export {
 } from "./constants";
 
 function resolveMimeType(file: File): AcceptedMimeType | null {
-  const declared = file.type.toLowerCase();
-  if (ACCEPTED_MIME_TYPES.includes(declared as AcceptedMimeType)) {
-    return declared as AcceptedMimeType;
+  const declared = file.type.toLowerCase().trim();
+
+  if (declared) {
+    if (ACCEPTED_MIME_TYPES.includes(declared as AcceptedMimeType)) {
+      return declared as AcceptedMimeType;
+    }
+    return null;
   }
 
   return inferMimeFromFilename(file.name);
@@ -41,35 +44,33 @@ export async function validateMediaFile(
     };
   }
 
-  if (file.type && !extensionMatchesMime(file.name, mimeType)) {
-    return {
-      success: false,
-      error: "Расширение файла не соответствует типу изображения.",
-    };
-  }
-
   if (mimeType === "image/svg+xml") {
     const svgText = await file.text();
-    const inspection = inspectSvg(svgText);
-    if ("error" in inspection) {
-      return { success: false, error: inspection.error };
+    const sanitized = sanitizeSvg(svgText);
+    if (!sanitized.success) {
+      return { success: false, error: sanitized.error };
     }
 
     return {
       success: true,
       file: {
-        blob: new Blob([svgText], { type: mimeType }),
+        blob: new Blob([sanitized.svg], { type: mimeType }),
         mimeType,
         filename: file.name,
-        width: inspection.width,
-        height: inspection.height,
+        width: sanitized.width,
+        height: sanitized.height,
       },
     };
   }
 
   try {
     const dimensions = await decoder.decode(file, mimeType);
-    if (dimensions.width <= 0 || dimensions.height <= 0) {
+    if (
+      !Number.isFinite(dimensions.width) ||
+      !Number.isFinite(dimensions.height) ||
+      dimensions.width <= 0 ||
+      dimensions.height <= 0
+    ) {
       return {
         success: false,
         error: "Не удалось декодировать изображение.",

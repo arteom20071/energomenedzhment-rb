@@ -1,5 +1,6 @@
 export {
   applyTemplate,
+  getSlideTemplates,
   SLIDE_TEMPLATES,
   type SlideTemplateDefinition,
   type TemplateId,

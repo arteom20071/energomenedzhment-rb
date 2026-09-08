@@ -21,7 +21,14 @@ export {
   extractFilesFromFileInput,
 } from "./ingestion";
 
-export { inspectSvg } from "./svgSanitizer";
+export {
+  mediaAssetSchema,
+  parseMediaAsset,
+  parseMediaAssets,
+  safeParseMediaAssets,
+} from "./mediaAssetSchema";
+
+export { sanitizeSvg, inspectSvg } from "./svgSanitizer";
 export { MediaPanel, type MediaPanelProps } from "./MediaPanel";
 export { MediaGrid, type MediaGridProps } from "./MediaGrid";
 export { UnsplashPanel, type UnsplashPanelProps } from "./UnsplashPanel";

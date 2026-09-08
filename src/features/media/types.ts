@@ -11,6 +11,7 @@ export interface MediaAsset {
 export interface MediaRepository {
   list(): Promise<MediaAsset[]>;
   getPreviewUrl(assetId: string): Promise<string | null>;
+  releasePreviewUrl(assetId: string, url: string): void | Promise<void>;
   delete(assetId: string): Promise<void>;
 }
 

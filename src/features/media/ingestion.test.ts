@@ -38,7 +38,7 @@ describe("ingestion helpers", () => {
     expect(extractFilesFromFileInput(input)).toEqual([]);
   });
 
-  it("extracts image files from DataTransfer drop", () => {
+  it("preserves unsupported files from DataTransfer drop", () => {
     const png = createFile("drop.png", "image/png");
     const txt = createFile("note.txt", "text/plain");
     const dataTransfer = {
@@ -57,28 +57,31 @@ describe("ingestion helpers", () => {
     } as unknown as DataTransfer;
 
     const files = extractFilesFromDataTransfer(dataTransfer);
-    expect(files).toEqual([png]);
+    expect(files).toEqual([png, txt]);
   });
 
-  it("extracts image files pasted from clipboard", () => {
+  it("preserves all clipboard files including unsupported types", () => {
     const webp = createFile("clip.webp", "image/webp");
+    const txt = createFile("notes.txt", "text/plain");
     const dataTransfer = {
       files: {
-        length: 1,
+        length: 2,
         0: webp,
-        item: () => webp,
+        1: txt,
+        item: (index: number) => [webp, txt][index] ?? null,
         [Symbol.iterator]: function* () {
           yield webp;
+          yield txt;
         },
       },
       items: [],
       types: ["Files"],
     } as unknown as DataTransfer;
 
-    expect(extractFilesFromClipboard(dataTransfer)).toEqual([webp]);
+    expect(extractFilesFromClipboard(dataTransfer)).toEqual([webp, txt]);
   });
 
-  it("returns empty array when clipboard has no image files", () => {
+  it("returns empty array when clipboard has no files", () => {
     const dataTransfer = {
       files: { length: 0, item: () => null, [Symbol.iterator]: function* () {} },
       items: [],

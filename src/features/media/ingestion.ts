@@ -1,20 +1,3 @@
-const IMAGE_MIME_PREFIX = "image/";
-
-function isImageFile(file: File): boolean {
-  if (file.type.startsWith(IMAGE_MIME_PREFIX)) {
-    return true;
-  }
-
-  const lower = file.name.toLowerCase();
-  return (
-    lower.endsWith(".png") ||
-    lower.endsWith(".jpg") ||
-    lower.endsWith(".jpeg") ||
-    lower.endsWith(".webp") ||
-    lower.endsWith(".svg")
-  );
-}
-
 function filesFromList(fileList: FileList | null | undefined): File[] {
   if (!fileList) {
     return [];
@@ -27,11 +10,11 @@ export function extractFilesFromFileInput(input: HTMLInputElement): File[] {
 }
 
 export function extractFilesFromDataTransfer(dataTransfer: DataTransfer): File[] {
-  return filesFromList(dataTransfer.files).filter(isImageFile);
+  return filesFromList(dataTransfer.files);
 }
 
 export function extractFilesFromClipboard(dataTransfer: DataTransfer): File[] {
-  return filesFromList(dataTransfer.files).filter(isImageFile);
+  return filesFromList(dataTransfer.files);
 }
 
 export async function extractFilesFromClipboardEvent(

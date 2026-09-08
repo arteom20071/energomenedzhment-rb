@@ -6,6 +6,7 @@ import {
   MAX_MEDIA_FILE_SIZE_BYTES,
   validateMediaFile,
 } from "./validation";
+import { sanitizeSvg } from "./svgSanitizer";
 
 function createFile(content: BlobPart, name: string, type: string): File {
   return new File([content], name, { type });
@@ -60,13 +61,43 @@ describe("validateMediaFile", () => {
     }
   });
 
-  it("rejects mismatched extension when MIME and extension disagree", async () => {
-    const file = createFile("data", "photo.exe", "image/png");
+  it("accepts supported declared MIME regardless of extension", async () => {
+    const file = createFile("png-bytes", "photo.exe", "image/png");
+    const result = await validateMediaFile(file, mockDecoder);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.file.mimeType).toBe("image/png");
+    }
+  });
+
+  it("rejects unsupported declared MIME even when extension matches png", async () => {
+    const file = createFile("data", "photo.png", "image/gif");
     const result = await validateMediaFile(file, mockDecoder);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/расширен/i);
+      expect(result.error).toMatch(/неподдерживаем/i);
+    }
+  });
+
+  it("rejects non-image declared MIME with png extension", async () => {
+    const file = createFile("data", "photo.png", "text/plain");
+    const result = await validateMediaFile(file, mockDecoder);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/неподдерживаем/i);
+    }
+  });
+
+  it("rejects empty MIME when filename has no known extension", async () => {
+    const file = createFile("data", "photo.bin", "");
+    const result = await validateMediaFile(file, mockDecoder);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/неподдерживаем/i);
     }
   });
 
@@ -133,9 +164,9 @@ describe("validateMediaFile", () => {
     }
   });
 
-  it("accepts safe inline SVG", async () => {
+  it("accepts safe inline SVG and stores sanitized blob only", async () => {
     const svg =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect fill="#6366f1" width="100" height="50"/></svg>';
+      '\n  <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect fill="#6366f1" width="100" height="50"/></svg>\n';
     const file = createFile(svg, "icon.svg", "image/svg+xml");
     const result = await validateMediaFile(file, mockDecoder);
 
@@ -143,6 +174,25 @@ describe("validateMediaFile", () => {
     if (result.success) {
       expect(result.file.width).toBe(100);
       expect(result.file.height).toBe(50);
+      const stored = await result.file.blob.text();
+      expect(stored).toContain('width="100"');
+      expect(stored).not.toContain("<script");
+      const sanitized = sanitizeSvg(svg);
+      expect(sanitized.success).toBe(true);
+      if (sanitized.success) {
+        expect(stored).toBe(sanitized.svg);
+      }
+    }
+  });
+
+  it("rejects SVG without valid dimensions", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
+    const file = createFile(svg, "icon.svg", "image/svg+xml");
+    const result = await validateMediaFile(file, mockDecoder);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/размер/i);
     }
   });
 });
