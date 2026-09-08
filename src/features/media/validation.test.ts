@@ -117,8 +117,23 @@ describe("validateMediaFile", () => {
     }
   });
 
+  it("returns Russian error when SVG file.text() fails", async () => {
+    const file = createFile("svg", "icon.svg", "image/svg+xml");
+    Object.defineProperty(file, "text", {
+      value: () => Promise.reject(new Error("read failed")),
+    });
+
+    const result = await validateMediaFile(file, mockDecoder);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toMatch(/прочитать/i);
+    }
+  });
+
   it("rejects SVG containing script tags", async () => {
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><script>alert(1)</script></svg>';
     const file = createFile(svg, "icon.svg", "image/svg+xml");
     const result = await validateMediaFile(file, mockDecoder);
 
@@ -130,37 +145,37 @@ describe("validateMediaFile", () => {
 
   it("rejects SVG with event handler attributes", async () => {
     const svg =
-      '<svg xmlns="http://www.w3.org/2000/svg"><rect onclick="alert(1)" width="10" height="10"/></svg>';
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect onclick="alert(1)" width="10" height="10"/></svg>';
     const file = createFile(svg, "icon.svg", "image/svg+xml");
     const result = await validateMediaFile(file, mockDecoder);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/обработчик/i);
+      expect(result.error).toMatch(/обработчик|неразреш/i);
     }
   });
 
   it("rejects SVG with external href references", async () => {
     const svg =
-      '<svg xmlns="http://www.w3.org/2000/svg"><a href="https://evil.example/x"><rect width="10" height="10"/></a></svg>';
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect fill="url(http://evil.example/x)" width="10" height="10"/></svg>';
     const file = createFile(svg, "icon.svg", "image/svg+xml");
     const result = await validateMediaFile(file, mockDecoder);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/внешн/i);
+      expect(result.error).toMatch(/небезопасн|url/i);
     }
   });
 
   it("rejects SVG with foreignObject", async () => {
     const svg =
-      '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div>html</div></foreignObject></svg>';
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><foreignObject><div>html</div></foreignObject></svg>';
     const file = createFile(svg, "icon.svg", "image/svg+xml");
     const result = await validateMediaFile(file, mockDecoder);
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toMatch(/foreignObject/i);
+      expect(result.error).toMatch(/foreignObject|запрещ/i);
     }
   });
 

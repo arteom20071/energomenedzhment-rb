@@ -2,6 +2,9 @@ import { z } from "zod";
 
 import type { MediaAsset } from "./types";
 
+const ISO_DATETIME_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+
 export const mediaAssetSchema = z
   .object({
     id: z.string().min(1),
@@ -10,16 +13,41 @@ export const mediaAssetSchema = z
     sizeBytes: z.number().finite().nonnegative(),
     width: z.number().finite().positive(),
     height: z.number().finite().positive(),
-    createdAt: z.string().min(1),
+    createdAt: z
+      .string()
+      .regex(ISO_DATETIME_PATTERN, "createdAt must be ISO-8601 UTC datetime")
+      .refine((value) => !Number.isNaN(Date.parse(value)), {
+        message: "createdAt must be a valid ISO-8601 UTC datetime",
+      }),
   })
   .strict();
+
+function findDuplicateAssetId(assets: MediaAsset[]): string | null {
+  const seen = new Map<string, number>();
+
+  for (let index = 0; index < assets.length; index += 1) {
+    const asset = assets[index]!;
+    const previousIndex = seen.get(asset.id);
+    if (previousIndex !== undefined) {
+      return `[${index}].id: duplicate id "${asset.id}" (also used at [${previousIndex}].id)`;
+    }
+    seen.set(asset.id, index);
+  }
+
+  return null;
+}
 
 export function parseMediaAsset(input: unknown): MediaAsset {
   return mediaAssetSchema.parse(input);
 }
 
 export function parseMediaAssets(input: unknown[]): MediaAsset[] {
-  return z.array(mediaAssetSchema).parse(input);
+  const assets = z.array(mediaAssetSchema).parse(input);
+  const duplicateError = findDuplicateAssetId(assets);
+  if (duplicateError) {
+    throw new Error(duplicateError);
+  }
+  return assets;
 }
 
 export function safeParseMediaAssets(
@@ -29,10 +57,21 @@ export function safeParseMediaAssets(
   | { success: false; error: string } {
   const parsed = z.array(mediaAssetSchema).safeParse(input);
   if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    const path = firstIssue?.path.join(".") ?? "(root)";
     return {
       success: false,
-      error: "Получены некорректные метаданные медиафайлов.",
+      error: `Получены некорректные метаданные медиафайлов: ${path}: ${firstIssue?.message ?? "validation error"}.`,
     };
   }
+
+  const duplicateError = findDuplicateAssetId(parsed.data);
+  if (duplicateError) {
+    return {
+      success: false,
+      error: duplicateError,
+    };
+  }
+
   return { success: true, data: parsed.data };
 }

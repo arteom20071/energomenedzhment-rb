@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { safeParseMediaAssets } from "./mediaAssetSchema";
 import type { MediaAsset, MediaRepository } from "./types";
@@ -21,6 +21,27 @@ interface AcquiredPreview {
   url: string;
 }
 
+interface ActivePreviewOwnership {
+  repository: MediaRepository;
+  acquired: AcquiredPreview[];
+  generation: number;
+}
+
+async function releaseAcquiredPreviews(
+  repository: MediaRepository,
+  acquired: AcquiredPreview[],
+): Promise<void> {
+  await Promise.all(
+    acquired.map(async (preview) => {
+      try {
+        await repository.releasePreviewUrl(preview.assetId, preview.url);
+      } catch {
+        // Release failures should not block UI teardown.
+      }
+    }),
+  );
+}
+
 export function MediaGrid({
   repository,
   refreshKey = 0,
@@ -32,93 +53,116 @@ export function MediaGrid({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const generationRef = useRef(0);
-  const acquiredRef = useRef<AcquiredPreview[]>([]);
-
-  const releaseAllPreviews = useCallback(async () => {
-    const acquired = acquiredRef.current;
-    acquiredRef.current = [];
-    await Promise.all(
-      acquired.map(async (preview) => {
-        try {
-          await repository.releasePreviewUrl(preview.assetId, preview.url);
-        } catch {
-          // Release failures should not block UI teardown.
-        }
-      }),
-    );
-  }, [repository]);
-
-  const releasePreview = useCallback(
-    async (assetId: string, url: string | null) => {
-      if (!url) {
-        return;
-      }
-      acquiredRef.current = acquiredRef.current.filter(
-        (preview) => !(preview.assetId === assetId && preview.url === url),
-      );
-      try {
-        await repository.releasePreviewUrl(assetId, url);
-      } catch {
-        // Ignore release errors during item replacement.
-      }
-    },
-    [repository],
-  );
+  const deleteGenerationRef = useRef(0);
+  const mountedRef = useRef(true);
+  const activePreviewsRef = useRef<ActivePreviewOwnership>({
+    repository,
+    acquired: [],
+    generation: 0,
+  });
 
   useEffect(() => {
-    const generation = ++generationRef.current;
-    let cancelled = false;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadRepository = repository;
+    const loadGeneration = ++generationRef.current;
+    const localAcquired: AcquiredPreview[] = [];
+
+    const previousActive = activePreviewsRef.current;
+    activePreviewsRef.current = {
+      repository: loadRepository,
+      acquired: [],
+      generation: loadGeneration,
+    };
+
+    void releaseAcquiredPreviews(previousActive.repository, previousActive.acquired);
+
+    async function releaseLocalAcquired(): Promise<void> {
+      const pending = localAcquired.splice(0, localAcquired.length);
+      await releaseAcquiredPreviews(loadRepository, pending);
+    }
 
     async function loadAssets() {
-      setLoading(true);
-      setError(null);
-      await releaseAllPreviews();
+      if (mountedRef.current && loadGeneration === generationRef.current) {
+        setLoading(true);
+        setError(null);
+      }
 
       try {
-        const rawAssets = await repository.list();
-        if (cancelled || generation !== generationRef.current) {
+        const rawAssets = await loadRepository.list();
+        if (loadGeneration !== generationRef.current) {
+          await releaseLocalAcquired();
           return;
         }
 
         const parsedAssets = safeParseMediaAssets(rawAssets);
         if (!parsedAssets.success) {
-          setError(parsedAssets.error);
-          setItems([]);
-          setLoading(false);
+          if (mountedRef.current && loadGeneration === generationRef.current) {
+            setError(parsedAssets.error);
+            setItems([]);
+            setLoading(false);
+          }
+          await releaseLocalAcquired();
           return;
         }
 
         const previews: AssetPreview[] = [];
         for (const asset of parsedAssets.data) {
-          if (cancelled || generation !== generationRef.current) {
-            await releaseAllPreviews();
+          if (loadGeneration !== generationRef.current) {
+            await releaseLocalAcquired();
             return;
           }
 
           let previewUrl: string | null = null;
           try {
-            previewUrl = await repository.getPreviewUrl(asset.id);
+            previewUrl = await loadRepository.getPreviewUrl(asset.id);
           } catch {
-            if (!cancelled && generation === generationRef.current) {
+            if (mountedRef.current && loadGeneration === generationRef.current) {
               setError(`Не удалось получить предпросмотр для «${asset.filename}».`);
             }
             continue;
           }
 
+          if (loadGeneration !== generationRef.current) {
+            if (previewUrl) {
+              await releaseAcquiredPreviews(loadRepository, [
+                { assetId: asset.id, url: previewUrl },
+              ]);
+            }
+            await releaseLocalAcquired();
+            return;
+          }
+
           if (previewUrl) {
-            acquiredRef.current.push({ assetId: asset.id, url: previewUrl });
+            localAcquired.push({ assetId: asset.id, url: previewUrl });
           }
           previews.push({ asset, previewUrl });
         }
 
-        if (!cancelled && generation === generationRef.current) {
+        if (loadGeneration !== generationRef.current) {
+          await releaseLocalAcquired();
+          return;
+        }
+
+        activePreviewsRef.current = {
+          repository: loadRepository,
+          acquired: [...localAcquired],
+          generation: loadGeneration,
+        };
+        localAcquired.length = 0;
+
+        if (mountedRef.current && loadGeneration === generationRef.current) {
           setItems(previews);
           setLoading(false);
-        } else {
-          await releaseAllPreviews();
         }
       } catch {
-        if (!cancelled && generation === generationRef.current) {
+        await releaseLocalAcquired();
+        if (mountedRef.current && loadGeneration === generationRef.current) {
           setError("Не удалось загрузить медиатеку.");
           setItems([]);
           setLoading(false);
@@ -129,21 +173,76 @@ export function MediaGrid({
     void loadAssets();
 
     return () => {
-      cancelled = true;
-      void releaseAllPreviews();
+      void (async () => {
+        await releaseLocalAcquired();
+        const active = activePreviewsRef.current;
+        if (active.generation === loadGeneration) {
+          await releaseAcquiredPreviews(active.repository, active.acquired);
+          if (activePreviewsRef.current.generation === loadGeneration) {
+            activePreviewsRef.current = {
+              repository: loadRepository,
+              acquired: [],
+              generation: loadGeneration,
+            };
+          }
+        }
+      })();
     };
-  }, [repository, refreshKey, releaseAllPreviews]);
+  }, [repository, refreshKey]);
 
   const handleDelete = async (asset: MediaAsset, previewUrl: string | null) => {
-    setError(null);
-    try {
-      await repository.delete(asset.id);
-      await releasePreview(asset.id, previewUrl);
-      setItems((current) => current.filter((item) => item.asset.id !== asset.id));
-      onDelete(asset);
-    } catch {
-      setError(`Не удалось удалить «${asset.filename}».`);
+    const deleteGeneration = ++deleteGenerationRef.current;
+    const deleteRepository = repository;
+
+    if (mountedRef.current && deleteGeneration === deleteGenerationRef.current) {
+      setError(null);
     }
+
+    try {
+      await deleteRepository.delete(asset.id);
+    } catch {
+      if (
+        mountedRef.current &&
+        deleteGeneration === deleteGenerationRef.current &&
+        deleteRepository === repository
+      ) {
+        setError(`Не удалось удалить «${asset.filename}».`);
+      }
+      return;
+    }
+
+    if (
+      !mountedRef.current ||
+      deleteGeneration !== deleteGenerationRef.current ||
+      deleteRepository !== repository
+    ) {
+      return;
+    }
+
+    if (previewUrl) {
+      try {
+        await deleteRepository.releasePreviewUrl(asset.id, previewUrl);
+      } catch {
+        // Ignore release errors after successful delete.
+      }
+
+      if (activePreviewsRef.current.repository === deleteRepository) {
+        activePreviewsRef.current.acquired = activePreviewsRef.current.acquired.filter(
+          (preview) => !(preview.assetId === asset.id && preview.url === previewUrl),
+        );
+      }
+    }
+
+    if (
+      !mountedRef.current ||
+      deleteGeneration !== deleteGenerationRef.current ||
+      deleteRepository !== repository
+    ) {
+      return;
+    }
+
+    setItems((current) => current.filter((item) => item.asset.id !== asset.id));
+    onDelete(asset);
   };
 
   if (loading) {

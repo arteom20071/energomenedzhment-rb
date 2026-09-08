@@ -45,7 +45,16 @@ export async function validateMediaFile(
   }
 
   if (mimeType === "image/svg+xml") {
-    const svgText = await file.text();
+    let svgText: string;
+    try {
+      svgText = await file.text();
+    } catch {
+      return {
+        success: false,
+        error: "Не удалось прочитать файл SVG.",
+      };
+    }
+
     const sanitized = sanitizeSvg(svgText);
     if (!sanitized.success) {
       return { success: false, error: sanitized.error };

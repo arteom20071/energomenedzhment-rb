@@ -66,6 +66,12 @@ export function MediaPanel({
 
       const generation = ++ingestGenerationRef.current;
 
+      if (mountedRef.current && generation === ingestGenerationRef.current) {
+        setError(null);
+      }
+
+      const batchErrors: string[] = [];
+
       for (const file of files) {
         try {
           const result = await validate(file);
@@ -74,12 +80,16 @@ export function MediaPanel({
           }
 
           if (!result.success) {
-            setError(result.error);
+            batchErrors.push(`${file.name}: ${result.error}`);
             continue;
           }
 
-          setError(null);
-          await onAddImage(result.file);
+          try {
+            await onAddImage(result.file);
+          } catch {
+            batchErrors.push(`${file.name}: Не удалось сохранить изображение.`);
+            continue;
+          }
 
           if (!mountedRef.current || generation !== ingestGenerationRef.current) {
             return;
@@ -87,10 +97,16 @@ export function MediaPanel({
 
           setLibraryRevision((revision) => revision + 1);
         } catch {
-          if (mountedRef.current && generation === ingestGenerationRef.current) {
-            setError("Не удалось сохранить изображение.");
-          }
+          batchErrors.push(`${file.name}: Не удалось обработать файл.`);
         }
+      }
+
+      if (
+        batchErrors.length > 0 &&
+        mountedRef.current &&
+        generation === ingestGenerationRef.current
+      ) {
+        setError(batchErrors.join(" "));
       }
     },
     [onAddImage, validate],

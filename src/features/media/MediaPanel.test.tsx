@@ -133,6 +133,7 @@ describe("MediaPanel", () => {
   });
 
   it("shows Russian error for unsupported file dropped alongside supported file", async () => {
+    const onAddImage = vi.fn();
     const validateFile = vi.fn(async (file: File) => {
       if (file.type === "text/plain") {
         return {
@@ -155,7 +156,7 @@ describe("MediaPanel", () => {
     render(
       <MediaPanel
         repository={createRepository()}
-        onAddImage={vi.fn()}
+        onAddImage={onAddImage}
         validateFile={validateFile}
       />,
     );
@@ -172,6 +173,54 @@ describe("MediaPanel", () => {
       },
     });
 
+    await waitFor(() => {
+      expect(onAddImage).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/неподдерживаем/i);
+  });
+
+  it("keeps batch rejection when valid file follows unsupported file", async () => {
+    const onAddImage = vi.fn();
+    const validateFile = vi.fn(async (file: File) => {
+      if (file.name.endsWith(".gif")) {
+        return {
+          success: false as const,
+          error: "Неподдерживаемый тип файла. Допустимы PNG, JPEG, WebP и SVG.",
+        };
+      }
+      return {
+        success: true as const,
+        file: {
+          blob: file,
+          mimeType: "image/png",
+          filename: file.name,
+          width: 10,
+          height: 10,
+        },
+      };
+    });
+
+    render(
+      <MediaPanel
+        repository={createRepository()}
+        onAddImage={onAddImage}
+        validateFile={validateFile}
+      />,
+    );
+
+    const input = screen.getByLabelText(/выбор файла/i);
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["bad"], "bad.gif", { type: "image/gif" }),
+          new File(["ok"], "ok.png", { type: "image/png" }),
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      expect(onAddImage).toHaveBeenCalledTimes(1);
+    });
     expect(await screen.findByRole("alert")).toHaveTextContent(/неподдерживаем/i);
   });
 

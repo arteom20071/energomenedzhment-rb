@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { mediaAssetSchema, parseMediaAsset, parseMediaAssets } from "./mediaAssetSchema";
+import {
+  mediaAssetSchema,
+  parseMediaAsset,
+  parseMediaAssets,
+  safeParseMediaAssets,
+} from "./mediaAssetSchema";
 
 const validAsset = {
   id: "asset-1",
@@ -33,8 +38,31 @@ describe("mediaAssetSchema", () => {
     expect(() => parseMediaAsset({ ...validAsset, width: 0 })).toThrow();
   });
 
+  it("requires strict ISO datetime for createdAt", () => {
+    expect(() =>
+      parseMediaAsset({ ...validAsset, createdAt: "2026-01-01" }),
+    ).toThrow();
+    expect(() =>
+      parseMediaAsset({ ...validAsset, createdAt: "not-a-date" }),
+    ).toThrow();
+  });
+
   it("validates repository list payloads", () => {
     expect(parseMediaAssets([validAsset])).toHaveLength(1);
     expect(() => parseMediaAssets([{ ...validAsset, id: "" }])).toThrow();
+  });
+
+  it("rejects duplicate asset IDs with precise path", () => {
+    const duplicate = safeParseMediaAssets([
+      validAsset,
+      { ...validAsset, filename: "other.png" },
+    ]);
+
+    expect(duplicate.success).toBe(false);
+    if (!duplicate.success) {
+      expect(duplicate.error).toMatch(/\[1\]\.id/);
+      expect(duplicate.error).toMatch(/\[0\]\.id/);
+      expect(duplicate.error).toMatch(/duplicate/i);
+    }
   });
 });

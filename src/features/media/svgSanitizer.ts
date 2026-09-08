@@ -2,40 +2,132 @@ export type SanitizeSvgResult =
   | { success: true; width: number; height: number; svg: string }
   | { success: false; error: string };
 
-const FORBIDDEN_TAGS = new Set(["script", "foreignobject", "style"]);
-const EVENT_HANDLER_PATTERN = /^on[a-z]/i;
-const UNSAFE_CSS_PATTERN = /url\s*\(|@import|expression\s*\(|javascript\s*:/i;
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
-function normalizeTagName(tagName: string): string {
-  return tagName.toLowerCase();
+const ALLOWED_TAGS = new Set([
+  "svg",
+  "g",
+  "path",
+  "rect",
+  "circle",
+  "ellipse",
+  "line",
+  "polyline",
+  "polygon",
+  "text",
+  "tspan",
+  "defs",
+  "clippath",
+  "mask",
+  "lineargradient",
+  "radialgradient",
+  "stop",
+  "title",
+  "desc",
+]);
+
+const GLOBAL_ATTRIBUTES = new Set([
+  "id",
+  "class",
+  "opacity",
+  "fill",
+  "stroke",
+  "stroke-width",
+  "stroke-linecap",
+  "stroke-linejoin",
+  "stroke-miterlimit",
+  "fill-opacity",
+  "stroke-opacity",
+  "transform",
+  "display",
+  "visibility",
+]);
+
+const TAG_ATTRIBUTES: Record<string, readonly string[]> = {
+  svg: ["xmlns", "width", "height", "viewbox", "preserveaspectratio"],
+  rect: ["x", "y", "width", "height", "rx", "ry"],
+  circle: ["cx", "cy", "r"],
+  ellipse: ["cx", "cy", "rx", "ry"],
+  line: ["x1", "y1", "x2", "y2"],
+  polyline: ["points"],
+  polygon: ["points"],
+  path: ["d", "fill-rule", "clip-rule"],
+  text: [
+    "x",
+    "y",
+    "dx",
+    "dy",
+    "text-anchor",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "dominant-baseline",
+  ],
+  tspan: [
+    "x",
+    "y",
+    "dx",
+    "dy",
+    "text-anchor",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "dominant-baseline",
+  ],
+  lineargradient: [
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "gradientunits",
+    "gradienttransform",
+    "spreadmethod",
+  ],
+  radialgradient: [
+    "cx",
+    "cy",
+    "r",
+    "fx",
+    "fy",
+    "gradientunits",
+    "gradienttransform",
+    "spreadmethod",
+  ],
+  stop: ["offset", "stop-color", "stop-opacity"],
+};
+
+const POSITIVE_DIMENSION_PATTERN =
+  /^(?:\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)(?:px)?$/;
+
+const SIGNED_NUMERIC_PATTERN =
+  /^-?(?:\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)$/;
+
+const UNSAFE_VALUE_PATTERN =
+  /url\s*\(|@import|expression\s*\(|javascript\s*:|data\s*:|https?\s*:|\/\/|file\s*:|blob\s*:/i;
+
+function containsForbiddenControlCharacters(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code === 0x09 || code === 0x0a || code === 0x0d) {
+      continue;
+    }
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function normalizeLocalName(element: Element): string {
+  return element.localName.toLowerCase();
 }
 
 function normalizeAttributeName(name: string): string {
   return name.toLowerCase();
 }
 
-function isLinkAttribute(name: string): boolean {
-  const normalized = normalizeAttributeName(name);
-  return (
-    normalized === "href" ||
-    normalized === "src" ||
-    normalized === "xlink:href" ||
-    normalized === "url" ||
-    normalized.endsWith(":href")
-  );
-}
-
-function isLocalFragmentReference(value: string): boolean {
-  const trimmed = value.trim();
-  return trimmed.startsWith("#") && trimmed.length > 1;
-}
-
-function isForbiddenReference(value: string): boolean {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return false;
-  }
-  return !isLocalFragmentReference(trimmed);
+function isSvgNamespace(namespaceUri: string | null): boolean {
+  return namespaceUri === SVG_NAMESPACE || namespaceUri === null;
 }
 
 function preflightSource(source: string): string | null {
@@ -51,23 +143,36 @@ function preflightSource(source: string): string | null {
   return null;
 }
 
-function parseDimensionValue(raw: string): number | null {
-  const match = raw.trim().match(/^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/);
-  if (!match) {
+function parsePositiveDimension(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!POSITIVE_DIMENSION_PATTERN.test(trimmed)) {
     return null;
   }
-  const value = Number(match[1]);
+
+  const numericPart = trimmed.endsWith("px") ? trimmed.slice(0, -2) : trimmed;
+  const value = Number(numericPart);
   if (!Number.isFinite(value) || value <= 0) {
     return null;
   }
+
   return value;
+}
+
+function parseSignedNumeric(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!SIGNED_NUMERIC_PATTERN.test(trimmed)) {
+    return null;
+  }
+
+  const value = Number(trimmed);
+  return Number.isFinite(value) ? value : null;
 }
 
 function readSvgDimensions(
   root: Element,
 ): { width: number; height: number } | { error: string } {
-  const width = parseDimensionValue(root.getAttribute("width") ?? "");
-  const height = parseDimensionValue(root.getAttribute("height") ?? "");
+  const width = parsePositiveDimension(root.getAttribute("width") ?? "");
+  const height = parsePositiveDimension(root.getAttribute("height") ?? "");
 
   if (width !== null && height !== null) {
     return { width, height };
@@ -77,9 +182,17 @@ function readSvgDimensions(
   if (viewBox) {
     const parts = viewBox.trim().split(/[\s,]+/);
     if (parts.length === 4) {
-      const viewBoxWidth = parseDimensionValue(parts[2] ?? "");
-      const viewBoxHeight = parseDimensionValue(parts[3] ?? "");
-      if (viewBoxWidth !== null && viewBoxHeight !== null) {
+      const minX = parseSignedNumeric(parts[0] ?? "");
+      const minY = parseSignedNumeric(parts[1] ?? "");
+      const viewBoxWidth = parsePositiveDimension(parts[2] ?? "");
+      const viewBoxHeight = parsePositiveDimension(parts[3] ?? "");
+
+      if (
+        minX !== null &&
+        minY !== null &&
+        viewBoxWidth !== null &&
+        viewBoxHeight !== null
+      ) {
         return { width: viewBoxWidth, height: viewBoxHeight };
       }
     }
@@ -88,37 +201,74 @@ function readSvgDimensions(
   return { error: "SVG не содержит допустимых размеров или viewBox." };
 }
 
+function isAllowedAttribute(tagName: string, attributeName: string): boolean {
+  if (GLOBAL_ATTRIBUTES.has(attributeName)) {
+    return true;
+  }
+
+  const tagAttributes = TAG_ATTRIBUTES[tagName];
+  return tagAttributes?.includes(attributeName) ?? false;
+}
+
+function inspectAttributeValue(value: string): string | null {
+  if (containsForbiddenControlCharacters(value)) {
+    return "SVG содержит недопустимые управляющие символы.";
+  }
+
+  if (UNSAFE_VALUE_PATTERN.test(value)) {
+    return "SVG содержит небезопасное значение атрибута.";
+  }
+
+  return null;
+}
+
 function inspectElementTree(root: Element): string | null {
   const elements: Element[] = [root];
-  const descendants = root.querySelectorAll("*");
-  descendants.forEach((element) => elements.push(element));
+  root.querySelectorAll("*").forEach((element) => elements.push(element));
 
   for (const element of elements) {
-    const tagName = normalizeTagName(element.tagName);
-    if (FORBIDDEN_TAGS.has(tagName)) {
-      if (tagName === "script") {
-        return "SVG содержит запрещённый элемент <script>.";
-      }
-      if (tagName === "foreignobject") {
-        return "SVG содержит запрещённый элемент foreignObject.";
-      }
-      return "SVG содержит запрещённый элемент <style>.";
+    if (!isSvgNamespace(element.namespaceURI)) {
+      return "SVG содержит элементы вне SVG-пространства имён.";
+    }
+
+    const tagName = normalizeLocalName(element);
+    if (!ALLOWED_TAGS.has(tagName)) {
+      return `SVG содержит запрещённый элемент <${element.localName}>.`;
     }
 
     for (const attribute of Array.from(element.attributes)) {
-      const attributeName = normalizeAttributeName(attribute.name);
-      const attributeValue = attribute.value;
+      if (attribute.name.includes(":")) {
+        return "SVG содержит запрещённые атрибуты с префиксом пространства имён.";
+      }
 
-      if (EVENT_HANDLER_PATTERN.test(attributeName)) {
+      const attributeName = normalizeAttributeName(attribute.name);
+
+      if (/^on[a-z]/i.test(attributeName)) {
         return "SVG содержит запрещённые обработчики событий.";
       }
 
-      if (attributeName === "style" && UNSAFE_CSS_PATTERN.test(attributeValue)) {
-        return "SVG содержит небезопасные CSS-ссылки в атрибуте style.";
+      if (
+        attributeName === "href" ||
+        attributeName === "src" ||
+        attributeName === "xlink:href"
+      ) {
+        return "SVG содержит запрещённые ссылочные атрибуты.";
       }
 
-      if (isLinkAttribute(attributeName) && isForbiddenReference(attributeValue)) {
-        return "SVG содержит запрещённые внешние ссылки.";
+      if (!isAllowedAttribute(tagName, attributeName)) {
+        return `SVG содержит неразрешённый атрибут «${attribute.name}».`;
+      }
+
+      if (tagName === "svg" && attributeName === "xmlns") {
+        if (attribute.value !== SVG_NAMESPACE) {
+          return "SVG содержит недопустимое значение xmlns.";
+        }
+        continue;
+      }
+
+      const valueError = inspectAttributeValue(attribute.value);
+      if (valueError) {
+        return valueError;
       }
     }
   }
@@ -152,8 +302,12 @@ export function sanitizeSvg(source: string): SanitizeSvgResult {
   }
 
   const root = document.documentElement;
-  if (!root || normalizeTagName(root.tagName) !== "svg") {
+  if (!root || normalizeLocalName(root) !== "svg") {
     return { success: false, error: "Файл SVG не содержит корневой элемент <svg>." };
+  }
+
+  if (!isSvgNamespace(root.namespaceURI)) {
+    return { success: false, error: "SVG содержит элементы вне SVG-пространства имён." };
   }
 
   const treeError = inspectElementTree(root);
