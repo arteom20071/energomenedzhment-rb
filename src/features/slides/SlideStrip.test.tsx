@@ -209,7 +209,7 @@ describe("SlideStrip", () => {
     expect(document.activeElement).toBe(remainingTab);
   });
 
-  it("focuses remaining tab after deleting focused active thumbnail via toolbar", () => {
+  it("keeps toolbar delete focused after moving from slide tab", () => {
     useEditorStore.getState().addSlide();
     renderStrip();
 
@@ -218,10 +218,13 @@ describe("SlideStrip", () => {
       activeTab.focus();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Удалить слайд" }));
+    const toolbarDelete = screen.getByRole("button", { name: "Удалить слайд" });
+    act(() => {
+      toolbarDelete.focus();
+    });
+    fireEvent.click(toolbarDelete);
 
-    const remainingTab = screen.getByRole("tab", { name: "Слайд 1" });
-    expect(document.activeElement).toBe(remainingTab);
+    expect(document.activeElement).toBe(toolbarDelete);
   });
 
   it("does not steal focus when deleting from toolbar while toolbar is focused", () => {

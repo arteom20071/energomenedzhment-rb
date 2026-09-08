@@ -8,11 +8,13 @@ import { useEditorStore } from "../../store/editorStore";
 import {
   buildSlideDeletionToken,
   createDeletionKind,
-  isToolbarFocusTransitionWithinStrip,
-  shouldRestoreStripFocusAfterDelete,
   undoSlideDeletion,
 } from "./slideDeletionUndo";
 import { SlideThumbnail } from "./SlideThumbnail";
+
+interface PerformDeleteOptions {
+  restoreFocusAfterDelete?: boolean;
+}
 
 export function SlideStrip() {
   const slides = useEditorStore((state) => state.presentation.slides);
@@ -25,9 +27,6 @@ export function SlideStrip() {
   const { showToast } = useToast();
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const tablistRef = useRef<HTMLDivElement>(null);
-  const stripSectionRef = useRef<HTMLElement>(null);
-  const pendingToolbarDeleteFocusRestoreRef = useRef(false);
   const pendingFocusSlideIdRef = useRef<string | null>(null);
 
   const slideIds = useMemo(() => slides.map((slide) => slide.id), [slides]);
@@ -49,7 +48,7 @@ export function SlideStrip() {
   }, [slides, activeSlideId, focusItem, setFocusedId]);
 
   const performDelete = useCallback(
-    (slideId: string) => {
+    (slideId: string, options: PerformDeleteOptions = {}) => {
       const store = useEditorStore;
       const stateBefore = store.getState();
       const presentationBefore = structuredClone(stateBefore.presentation);
@@ -66,12 +65,6 @@ export function SlideStrip() {
         return;
       }
 
-      const restoreStripFocus = shouldRestoreStripFocusAfterDelete(
-        tablistRef.current,
-        pendingToolbarDeleteFocusRestoreRef.current,
-      );
-      pendingToolbarDeleteFocusRestoreRef.current = false;
-
       deleteSlide(slideId);
       const presentationAfter = structuredClone(store.getState().presentation);
 
@@ -82,7 +75,7 @@ export function SlideStrip() {
         hadMutation: kind === "remove-slide" || deletedSlide.elements.length > 0,
       });
 
-      if (restoreStripFocus) {
+      if (options.restoreFocusAfterDelete) {
         pendingFocusSlideIdRef.current = store.getState().activeSlideId;
       }
 
@@ -132,28 +125,15 @@ export function SlideStrip() {
 
   return (
     <section
-      ref={stripSectionRef}
       aria-label="Лента слайдов"
       className="flex h-28 shrink-0 items-center gap-2 border-t border-slate-800 bg-slate-900 px-4"
     >
       <div
-        ref={tablistRef}
         role="tablist"
         aria-label="Миниатюры слайдов"
         aria-orientation="horizontal"
         className="flex min-w-0 flex-1 gap-2 overflow-x-auto py-2"
         onKeyDown={onTablistKeyDown}
-        onBlur={(event: React.FocusEvent<HTMLDivElement>) => {
-          if (
-            isToolbarFocusTransitionWithinStrip(
-              tablistRef.current,
-              stripSectionRef.current,
-              event.relatedTarget,
-            )
-          ) {
-            pendingToolbarDeleteFocusRestoreRef.current = true;
-          }
-        }}
       >
         {slides.map((slide, index) => {
           const tabProps = getTabProps(slide.id);
@@ -168,7 +148,9 @@ export function SlideStrip() {
               tabRef={tabProps.ref}
               onFocus={tabProps.onFocus}
               onSelect={setActiveSlide}
-              onDelete={performDelete}
+              onDelete={(slideId, restoreFocusAfterDelete) =>
+                performDelete(slideId, { restoreFocusAfterDelete })
+              }
               onDragStart={setDraggedIndex}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
@@ -196,7 +178,7 @@ export function SlideStrip() {
           label="Удалить слайд"
           onClick={() => {
             if (activeSlideId) {
-              performDelete(activeSlideId);
+              performDelete(activeSlideId, { restoreFocusAfterDelete: false });
             }
           }}
           className="text-rose-400 hover:text-rose-300"

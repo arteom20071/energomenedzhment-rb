@@ -83,34 +83,3 @@ export function undoSlideDeletion(
 export function createDeletionKind(slideCount: number): SlideDeletionKind {
   return slideCount === 1 ? "clear-contents" : "remove-slide";
 }
-
-function isStripTablistFocusTarget(tablistElement: HTMLElement | null): boolean {
-  const activeElement = document.activeElement;
-  if (!(activeElement instanceof HTMLElement) || !tablistElement) {
-    return false;
-  }
-
-  return tablistElement.contains(activeElement);
-}
-
-export function shouldRestoreStripFocusAfterDelete(
-  tablistElement: HTMLElement | null,
-  pendingToolbarTransition: boolean,
-): boolean {
-  return isStripTablistFocusTarget(tablistElement) || pendingToolbarTransition;
-}
-
-export function isToolbarFocusTransitionWithinStrip(
-  tablistElement: HTMLElement | null,
-  stripSectionElement: HTMLElement | null,
-  relatedTarget: EventTarget | null,
-): boolean {
-  if (!(relatedTarget instanceof HTMLElement) || !stripSectionElement || !tablistElement) {
-    return false;
-  }
-
-  return (
-    stripSectionElement.contains(relatedTarget) &&
-    !tablistElement.contains(relatedTarget)
-  );
-}
