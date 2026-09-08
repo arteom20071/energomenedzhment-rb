@@ -1,91 +1,67 @@
-import type { Presentation, Slide } from "../../domain/presentation";
+import type { Presentation } from "../../domain/presentation";
 import type { EditorStoreApi } from "../../store/editorStore";
 
 export type SlideDeletionKind = "remove-slide" | "clear-contents";
 
-export interface SlideDeletionOperation {
+export interface SlideDeletionToken {
   kind: SlideDeletionKind;
-  deletedSlide: Slide;
-  slideIndex: number;
-  activeSlideIdBefore: string;
   postDeleteFingerprint: string;
+  pastStatesLength: number;
+  futureStatesLength: number;
   hadMutation: boolean;
 }
 
-interface BuildSlideDeletionOperationInput {
+interface BuildSlideDeletionTokenInput {
+  store: EditorStoreApi;
   presentationAfter: Presentation;
-  deletedSlide: Slide;
-  slideIndex: number;
-  activeSlideIdBefore: string;
   kind: SlideDeletionKind;
+  hadMutation: boolean;
 }
 
 export function fingerprintPresentation(presentation: Presentation): string {
   return JSON.stringify(presentation);
 }
 
-export function buildSlideDeletionOperation(
-  input: BuildSlideDeletionOperationInput,
-): SlideDeletionOperation {
-  const hadMutation =
-    input.kind === "remove-slide" ? true : input.deletedSlide.elements.length > 0;
+export function buildSlideDeletionToken(
+  input: BuildSlideDeletionTokenInput,
+): SlideDeletionToken {
+  const temporal = input.store.temporal.getState();
 
   return {
     kind: input.kind,
-    deletedSlide: structuredClone(input.deletedSlide),
-    slideIndex: input.slideIndex,
-    activeSlideIdBefore: input.activeSlideIdBefore,
     postDeleteFingerprint: fingerprintPresentation(input.presentationAfter),
-    hadMutation,
+    pastStatesLength: temporal.pastStates.length,
+    futureStatesLength: temporal.futureStates.length,
+    hadMutation: input.hadMutation,
   };
 }
 
-export function canRestoreSlideDeletion(
-  currentPresentation: Presentation,
-  operation: SlideDeletionOperation,
-): boolean {
-  return fingerprintPresentation(currentPresentation) === operation.postDeleteFingerprint;
-}
-
-export function restoreSlideDeletion(
+export function canUndoSlideDeletion(
   store: EditorStoreApi,
-  operation: SlideDeletionOperation,
-): { success: true } | { success: false; reason: "mutated" } {
+  token: SlideDeletionToken,
+): boolean {
+  const temporal = store.temporal.getState();
   const currentPresentation = store.getState().presentation;
 
-  if (!canRestoreSlideDeletion(currentPresentation, operation)) {
+  return (
+    fingerprintPresentation(currentPresentation) === token.postDeleteFingerprint &&
+    temporal.pastStates.length === token.pastStatesLength &&
+    temporal.futureStates.length === token.futureStatesLength
+  );
+}
+
+export function undoSlideDeletion(
+  store: EditorStoreApi,
+  token: SlideDeletionToken,
+): { success: true } | { success: false; reason: "mutated" } {
+  if (!canUndoSlideDeletion(store, token)) {
     return { success: false, reason: "mutated" };
   }
 
-  const restoredPresentation: Presentation =
-    operation.kind === "clear-contents"
-      ? {
-          ...currentPresentation,
-          slides: currentPresentation.slides.map((slide, index) =>
-            index === operation.slideIndex ? operation.deletedSlide : slide,
-          ),
-        }
-      : {
-          ...currentPresentation,
-          slides: [
-            ...currentPresentation.slides.slice(0, operation.slideIndex),
-            operation.deletedSlide,
-            ...currentPresentation.slides.slice(operation.slideIndex),
-          ],
-        };
-
-  store.getState().setPresentation(restoredPresentation);
-  store.getState().setActiveSlide(
-    operation.deletedSlide.id === operation.activeSlideIdBefore
-      ? operation.deletedSlide.id
-      : operation.activeSlideIdBefore,
-  );
-
+  store.temporal.getState().undo();
   return { success: true };
 }
 
-export function createDeletionKind(
-  slideCount: number,
-): SlideDeletionKind {
+export function createDeletionKind(slideCount: number): SlideDeletionKind {
   return slideCount === 1 ? "clear-contents" : "remove-slide";
 }

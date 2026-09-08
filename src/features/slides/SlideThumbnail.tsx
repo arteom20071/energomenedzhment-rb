@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import type { DragEvent } from "react";
+import type { DragEvent, Ref } from "react";
 
 interface SlideThumbnailProps {
   index: number;
@@ -7,6 +7,7 @@ interface SlideThumbnailProps {
   background: string;
   isActive: boolean;
   tabIndex: number;
+  tabRef?: Ref<HTMLButtonElement>;
   onFocus: () => void;
   onSelect: (slideId: string) => void;
   onDelete: (slideId: string) => void;
@@ -22,6 +23,7 @@ export function SlideThumbnail({
   background,
   isActive,
   tabIndex,
+  tabRef,
   onFocus,
   onSelect,
   onDelete,
@@ -35,6 +37,7 @@ export function SlideThumbnail({
   return (
     <div className="group relative shrink-0">
       <button
+        ref={tabRef}
         type="button"
         role="tab"
         aria-selected={isActive}

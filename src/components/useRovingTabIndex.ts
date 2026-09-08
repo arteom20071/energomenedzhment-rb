@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 type Orientation = "horizontal" | "vertical";
 
@@ -12,13 +12,53 @@ const PREVIOUS_KEY: Record<Orientation, string> = {
   vertical: "ArrowUp",
 };
 
+function resolveFocusedId<T extends string>(
+  itemIds: readonly T[],
+  selectedId: T,
+  focusedOverride: T | null,
+): T {
+  if (itemIds.length === 0) {
+    return selectedId;
+  }
+
+  if (focusedOverride && itemIds.includes(focusedOverride)) {
+    return focusedOverride;
+  }
+
+  if (itemIds.includes(selectedId)) {
+    return selectedId;
+  }
+
+  return itemIds[0]!;
+}
+
 export function useRovingTabIndex<T extends string>(
   itemIds: readonly T[],
   selectedId: T,
   orientation: Orientation = "horizontal",
 ) {
+  const itemRefs = useRef(new Map<T, HTMLElement>());
   const [focusedOverride, setFocusedOverride] = useState<T | null>(null);
-  const focusedId = focusedOverride ?? selectedId;
+
+  const focusedId = useMemo(
+    () => resolveFocusedId(itemIds, selectedId, focusedOverride),
+    [itemIds, selectedId, focusedOverride],
+  );
+
+  const registerRef = useCallback(
+    (itemId: T) => (element: HTMLElement | null) => {
+      if (element) {
+        itemRefs.current.set(itemId, element);
+      } else {
+        itemRefs.current.delete(itemId);
+      }
+    },
+    [],
+  );
+
+  const focusItem = useCallback((itemId: T) => {
+    itemRefs.current.get(itemId)?.focus();
+  }, []);
 
   const moveFocus = useCallback(
     (delta: number) => {
@@ -39,45 +79,40 @@ export function useRovingTabIndex<T extends string>(
         return null;
       }
 
+      let nextId: T | null = null;
+
       if (event.key === NEXT_KEY[orientation]) {
         event.preventDefault();
-        const nextId = moveFocus(1);
-        setFocusedOverride(nextId);
-        return nextId;
-      }
-
-      if (event.key === PREVIOUS_KEY[orientation]) {
+        nextId = moveFocus(1);
+      } else if (event.key === PREVIOUS_KEY[orientation]) {
         event.preventDefault();
-        const previousId = moveFocus(-1);
-        setFocusedOverride(previousId);
-        return previousId;
-      }
-
-      if (event.key === "Home") {
+        nextId = moveFocus(-1);
+      } else if (event.key === "Home") {
         event.preventDefault();
-        const firstId = itemIds[0]!;
-        setFocusedOverride(firstId);
-        return firstId;
-      }
-
-      if (event.key === "End") {
+        nextId = itemIds[0]!;
+      } else if (event.key === "End") {
         event.preventDefault();
-        const lastId = itemIds[itemIds.length - 1]!;
-        setFocusedOverride(lastId);
-        return lastId;
+        nextId = itemIds[itemIds.length - 1]!;
       }
 
-      return null;
+      if (!nextId) {
+        return null;
+      }
+
+      setFocusedOverride(nextId);
+      focusItem(nextId);
+      return nextId;
     },
-    [itemIds, moveFocus, orientation],
+    [focusItem, itemIds, moveFocus, orientation],
   );
 
   const getTabProps = useCallback(
     (itemId: T) => ({
       tabIndex: itemId === focusedId ? 0 : -1,
       onFocus: () => setFocusedOverride(itemId),
+      ref: registerRef(itemId),
     }),
-    [focusedId],
+    [focusedId, registerRef],
   );
 
   return {

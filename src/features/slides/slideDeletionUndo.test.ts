@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createPresentation, createTextElement, resetIdGenerator } from "../../domain/factories";
 import { createEditorStore } from "../../store/editorStore";
 import {
-  buildSlideDeletionOperation,
-  canRestoreSlideDeletion,
+  buildSlideDeletionToken,
+  canUndoSlideDeletion,
   createDeletionKind,
   fingerprintPresentation,
-  restoreSlideDeletion,
+  undoSlideDeletion,
 } from "./slideDeletionUndo";
 
 describe("slideDeletionUndo", () => {
@@ -15,132 +15,122 @@ describe("slideDeletionUndo", () => {
     resetIdGenerator();
   });
 
-  it("builds a remove-slide operation with post-delete fingerprint", () => {
+  it("builds a token with post-delete fingerprint and temporal position", () => {
     const store = createEditorStore({ presentation: createPresentation("Test") });
     store.getState().addSlide();
-    const before = structuredClone(store.getState().presentation);
-    const deletedSlide = before.slides[1]!;
+    const deletedSlide = store.getState().presentation.slides[1]!;
     store.getState().deleteSlide(deletedSlide.id);
     const after = structuredClone(store.getState().presentation);
 
-    const operation = buildSlideDeletionOperation({
+    const token = buildSlideDeletionToken({
+      store,
       presentationAfter: after,
-      deletedSlide,
-      slideIndex: 1,
-      activeSlideIdBefore: before.slides[0]!.id,
       kind: "remove-slide",
+      hadMutation: true,
     });
 
-    expect(operation.kind).toBe("remove-slide");
-    expect(operation.postDeleteFingerprint).toBe(fingerprintPresentation(after));
+    expect(token.postDeleteFingerprint).toBe(fingerprintPresentation(after));
+    expect(token.pastStatesLength).toBe(store.temporal.getState().pastStates.length);
+    expect(token.futureStatesLength).toBe(store.temporal.getState().futureStates.length);
   });
 
-  it("restores a removed slide at the original index when state is unchanged", () => {
-    const store = createEditorStore({ presentation: createPresentation("Test") });
+  it("restores deletion via temporal undo while preserving earlier history", () => {
+    const store = createEditorStore({ presentation: createPresentation("Original") });
+    store.getState().renamePresentation("Renamed");
     store.getState().addSlide();
-    const before = structuredClone(store.getState().presentation);
-    const deletedSlide = before.slides[1]!;
+    const deletedSlide = store.getState().presentation.slides[1]!;
     store.getState().deleteSlide(deletedSlide.id);
     const after = structuredClone(store.getState().presentation);
 
-    const operation = buildSlideDeletionOperation({
+    const token = buildSlideDeletionToken({
+      store,
       presentationAfter: after,
-      deletedSlide,
-      slideIndex: 1,
-      activeSlideIdBefore: before.slides[0]!.id,
-      kind: createDeletionKind(before.slides.length),
+      kind: "remove-slide",
+      hadMutation: true,
     });
 
-    const result = restoreSlideDeletion(store, operation);
-    expect(result).toEqual({ success: true });
+    expect(undoSlideDeletion(store, token)).toEqual({ success: true });
     expect(store.getState().presentation.slides).toHaveLength(2);
     expect(store.getState().presentation.slides[1]?.id).toBe(deletedSlide.id);
+    expect(store.getState().presentation.title).toBe("Renamed");
+    expect(store.temporal.getState().pastStates.length).toBeGreaterThan(0);
+
+    store.temporal.getState().undo();
+    expect(store.getState().presentation.slides).toHaveLength(1);
+    expect(store.getState().presentation.title).toBe("Renamed");
+
+    store.temporal.getState().undo();
+    expect(store.getState().presentation.title).toBe("Original");
   });
 
-  it("refuses restore after unrelated subsequent edit", () => {
+  it("refuses undo after unrelated subsequent edit", () => {
     const store = createEditorStore({ presentation: createPresentation("Test") });
     store.getState().addSlide();
-    const before = structuredClone(store.getState().presentation);
-    const deletedSlide = before.slides[1]!;
+    const deletedSlide = store.getState().presentation.slides[1]!;
     store.getState().deleteSlide(deletedSlide.id);
     const after = structuredClone(store.getState().presentation);
     store.getState().addSlide();
 
-    const operation = buildSlideDeletionOperation({
+    const token = buildSlideDeletionToken({
+      store,
       presentationAfter: after,
-      deletedSlide,
-      slideIndex: 1,
-      activeSlideIdBefore: before.slides[0]!.id,
       kind: "remove-slide",
+      hadMutation: true,
     });
 
-    expect(canRestoreSlideDeletion(store.getState().presentation, operation)).toBe(false);
-    expect(restoreSlideDeletion(store, operation)).toEqual({
-      success: false,
-      reason: "mutated",
-    });
+    expect(canUndoSlideDeletion(store, token)).toBe(false);
+    expect(undoSlideDeletion(store, token)).toEqual({ success: false, reason: "mutated" });
   });
 
-  it("refuses restore after prior manual temporal undo changed the document", () => {
+  it("refuses undo after manual temporal undo changed history position", () => {
     const store = createEditorStore({ presentation: createPresentation("Test") });
     store.getState().addSlide();
-    const before = structuredClone(store.getState().presentation);
-    const deletedSlide = before.slides[1]!;
-    store.getState().deleteSlide(deletedSlide.id);
+    store.getState().deleteSlide(store.getState().presentation.slides[1]!.id);
     const after = structuredClone(store.getState().presentation);
+
+    const token = buildSlideDeletionToken({
+      store,
+      presentationAfter: after,
+      kind: "remove-slide",
+      hadMutation: true,
+    });
+
     store.temporal.getState().undo();
 
-    const operation = buildSlideDeletionOperation({
-      presentationAfter: after,
-      deletedSlide,
-      slideIndex: 1,
-      activeSlideIdBefore: before.slides[0]!.id,
-      kind: "remove-slide",
-    });
-
-    expect(restoreSlideDeletion(store, operation)).toEqual({
-      success: false,
-      reason: "mutated",
-    });
+    expect(undoSlideDeletion(store, token)).toEqual({ success: false, reason: "mutated" });
   });
 
-  it("restores cleared contents on the last remaining slide", () => {
+  it("restores cleared last-slide contents via temporal undo", () => {
     const store = createEditorStore({ presentation: createPresentation("One") });
-    const before = structuredClone(store.getState().presentation);
-    const slide = before.slides[0]!;
-    slide.elements = [
-      createTextElement(slide.elements, { content: "Keep me" }),
-    ];
-    store.getState().setPresentation(before);
+    const slide = store.getState().presentation.slides[0]!;
+    slide.elements = [createTextElement(slide.elements, { content: "Keep me" })];
+    store.getState().setPresentation(store.getState().presentation);
 
-    const slideBeforeDelete = structuredClone(store.getState().presentation.slides[0]!);
-    store.getState().deleteSlide(slideBeforeDelete.id);
+    store.getState().deleteSlide(slide.id);
     const after = structuredClone(store.getState().presentation);
 
-    const operation = buildSlideDeletionOperation({
+    const token = buildSlideDeletionToken({
+      store,
       presentationAfter: after,
-      deletedSlide: slideBeforeDelete,
-      slideIndex: 0,
-      activeSlideIdBefore: slideBeforeDelete.id,
       kind: "clear-contents",
+      hadMutation: true,
     });
 
-    expect(restoreSlideDeletion(store, operation)).toEqual({ success: true });
+    expect(undoSlideDeletion(store, token)).toEqual({ success: true });
     expect(store.getState().presentation.slides[0]?.elements[0]?.content).toBe("Keep me");
   });
 
-  it("marks clear-contents without elements as a non-mutating operation", () => {
-    const presentation = createPresentation("Empty");
-    const slide = presentation.slides[0]!;
+  it("marks clear-contents without elements as non-mutating", () => {
+    const store = createEditorStore({ presentation: createPresentation("Empty") });
+    const presentation = store.getState().presentation;
 
-    const operation = buildSlideDeletionOperation({
+    const token = buildSlideDeletionToken({
+      store,
       presentationAfter: presentation,
-      deletedSlide: slide,
-      slideIndex: 0,
-      activeSlideIdBefore: slide.id,
-      kind: "clear-contents",
+      kind: createDeletionKind(1),
+      hadMutation: false,
     });
 
-    expect(operation.hadMutation).toBe(false);
+    expect(token.hadMutation).toBe(false);
   });
 });

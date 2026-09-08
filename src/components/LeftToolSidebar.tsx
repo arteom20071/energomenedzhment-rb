@@ -74,6 +74,7 @@ export function LeftToolSidebar(props: LeftToolSidebarProps) {
           return (
             <button
               key={id}
+              ref={tabProps.ref}
               type="button"
               role="tab"
               aria-selected={selected}

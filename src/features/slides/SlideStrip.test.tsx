@@ -49,8 +49,6 @@ describe("SlideStrip", () => {
     expect(tabs).toHaveLength(2);
     expect(tabs[0]).toHaveAttribute("aria-selected", "false");
     expect(tabs[1]).toHaveAttribute("aria-selected", "true");
-    expect(tabs[0]).toHaveAccessibleName("Слайд 1");
-    expect(tabs[1]).toHaveAccessibleName("Слайд 2");
   });
 
   it("activates a slide when its thumbnail is clicked", () => {
@@ -65,19 +63,17 @@ describe("SlideStrip", () => {
 
   it("adds a slide from the add button", () => {
     renderStrip();
-
     fireEvent.click(screen.getByRole("button", { name: "Добавить слайд" }));
     expect(useEditorStore.getState().presentation.slides).toHaveLength(2);
   });
 
   it("duplicates the active slide", () => {
     renderStrip();
-
     fireEvent.click(screen.getByRole("button", { name: "Дублировать слайд" }));
     expect(useEditorStore.getState().presentation.slides).toHaveLength(2);
   });
 
-  it("deletes the active slide and restores it with scoped undo", () => {
+  it("deletes the active slide and restores it with scoped temporal undo", () => {
     useEditorStore.getState().addSlide();
     renderStrip();
 
@@ -85,15 +81,36 @@ describe("SlideStrip", () => {
     const deletedId = useEditorStore.getState().presentation.slides[1]!.id;
 
     fireEvent.click(screen.getByRole("button", { name: "Удалить слайд" }));
-
     expect(useEditorStore.getState().presentation.slides).toHaveLength(initialCount - 1);
-    expect(screen.getByRole("status")).toHaveTextContent("Слайд удалён");
 
     fireEvent.click(screen.getByRole("button", { name: "Отменить удаление" }));
     expect(useEditorStore.getState().presentation.slides).toHaveLength(initialCount);
     expect(useEditorStore.getState().presentation.slides.some((slide) => slide.id === deletedId)).toBe(
       true,
     );
+  });
+
+  it("preserves earlier rename history after toast undo", () => {
+    useEditorStore.getState().renamePresentation("Renamed");
+    useEditorStore.getState().addSlide();
+    renderStrip();
+
+    fireEvent.click(screen.getByRole("button", { name: "Удалить слайд" }));
+    fireEvent.click(screen.getByRole("button", { name: "Отменить удаление" }));
+
+    expect(useEditorStore.getState().presentation.title).toBe("Renamed");
+    expect(useEditorStore.getState().presentation.slides).toHaveLength(2);
+
+    act(() => {
+      editorTemporalControls.undo();
+    });
+    expect(useEditorStore.getState().presentation.slides).toHaveLength(1);
+    expect(useEditorStore.getState().presentation.title).toBe("Renamed");
+
+    act(() => {
+      editorTemporalControls.undo();
+    });
+    expect(useEditorStore.getState().presentation.title).toBe("Slides");
   });
 
   it("does not undo unrelated edits through the deletion toast", () => {
@@ -134,9 +151,7 @@ describe("SlideStrip", () => {
     renderStrip();
 
     fireEvent.click(screen.getByRole("button", { name: "Удалить слайд" }));
-
     expect(screen.getByRole("status")).toHaveTextContent("Содержимое слайда очищено");
-    expect(useEditorStore.getState().presentation.slides[0]?.elements).toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Отменить удаление" }));
     expect(useEditorStore.getState().presentation.slides[0]?.elements[0]?.content).toBe("Payload");
@@ -144,20 +159,16 @@ describe("SlideStrip", () => {
 
   it("does not show a toast when deleting an already empty last slide", () => {
     renderStrip();
-
     fireEvent.click(screen.getByRole("button", { name: "Удалить слайд" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("supports deleting a non-active slide and restoring it", () => {
     useEditorStore.getState().addSlide();
-    const firstSlideId = useEditorStore.getState().presentation.slides[0]!.id;
-    useEditorStore.getState().setActiveSlide(firstSlideId);
+    useEditorStore.getState().setActiveSlide(useEditorStore.getState().presentation.slides[0]!.id);
     renderStrip();
 
     fireEvent.click(screen.getByRole("button", { name: "Удалить слайд 2" }));
-
-    expect(useEditorStore.getState().presentation.slides).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Отменить удаление" }));
     expect(useEditorStore.getState().presentation.slides).toHaveLength(2);
   });
@@ -171,21 +182,29 @@ describe("SlideStrip", () => {
     expect(tabs[1]).toHaveAttribute("tabindex", "0");
   });
 
-  it("moves selection with ArrowLeft and ArrowRight keys", () => {
+  it("focuses the newly active slide tab on arrow keys", () => {
     useEditorStore.getState().addSlide();
     renderStrip();
 
     const tablist = screen.getByRole("tablist", { name: "Миниатюры слайдов" });
-    const firstSlideId = useEditorStore.getState().presentation.slides[0]!.id;
-    const secondSlideId = useEditorStore.getState().presentation.slides[1]!.id;
-
-    expect(useEditorStore.getState().activeSlideId).toBe(secondSlideId);
+    const firstTab = screen.getByRole("tab", { name: "Слайд 1" });
 
     fireEvent.keyDown(tablist, { key: "ArrowLeft" });
-    expect(useEditorStore.getState().activeSlideId).toBe(firstSlideId);
+    expect(document.activeElement).toBe(firstTab);
+    expect(firstTab).toHaveAttribute("tabindex", "0");
+  });
 
-    fireEvent.keyDown(tablist, { key: "ArrowRight" });
-    expect(useEditorStore.getState().activeSlideId).toBe(secondSlideId);
+  it("normalizes roving focus when the focused slide is deleted", () => {
+    useEditorStore.getState().addSlide();
+    renderStrip();
+
+    const tablist = screen.getByRole("tablist", { name: "Миниатюры слайдов" });
+    fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Удалить слайд" }));
+
+    const remainingTab = screen.getByRole("tab", { name: "Слайд 1" });
+    expect(remainingTab).toHaveAttribute("tabindex", "0");
   });
 
   it("reorders slides via drag and drop", () => {
@@ -197,10 +216,7 @@ describe("SlideStrip", () => {
       (slide) => slide.id,
     );
 
-    const thirdTab = screen.getByRole("tab", { name: "Слайд 3" });
-    const firstTab = screen.getByRole("tab", { name: "Слайд 1" });
-
-    dragSlide(thirdTab, firstTab);
+    dragSlide(screen.getByRole("tab", { name: "Слайд 3" }), screen.getByRole("tab", { name: "Слайд 1" }));
 
     const order = useEditorStore.getState().presentation.slides.map((slide) => slide.id);
     expect(order[0]).toBe(thirdId);

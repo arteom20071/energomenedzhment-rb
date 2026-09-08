@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { createRef } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createRef, useRef, useState } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Dialog } from "./Dialog";
 
@@ -9,21 +9,100 @@ describe("Dialog", () => {
     vi.useFakeTimers();
   });
 
-  it("moves initial focus into the dialog when opened", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not move focus on initial closed mount", () => {
     const triggerRef = createRef<HTMLButtonElement>();
+    const externalRef = createRef<HTMLButtonElement>();
+
     render(
       <>
+        <button ref={externalRef} type="button">
+          External
+        </button>
         <button ref={triggerRef} type="button">
           Open
         </button>
-        <Dialog title="Test dialog" open onClose={() => undefined} triggerRef={triggerRef}>
+        <Dialog title="Test dialog" open={false} onClose={() => undefined} triggerRef={triggerRef}>
           <button type="button">First action</button>
         </Dialog>
       </>,
     );
 
-    const dialog = screen.getByRole("dialog", { name: "Test dialog" });
-    expect(dialog.contains(document.activeElement)).toBe(true);
+    act(() => {
+      externalRef.current?.focus();
+    });
+
+    expect(document.activeElement).toBe(externalRef.current);
+  });
+
+  it("restores focus to the trigger after click-open close", () => {
+    function Host() {
+      const triggerRef = useRef<HTMLButtonElement>(null);
+      const [open, setOpen] = useState(false);
+
+      return (
+        <>
+          <button ref={triggerRef} type="button" onClick={() => setOpen(true)}>
+            Open
+          </button>
+          <Dialog title="Test dialog" open={open} onClose={() => setOpen(false)} triggerRef={triggerRef}>
+            <button type="button">First action</button>
+          </Dialog>
+        </>
+      );
+    }
+
+    render(<Host />);
+
+    const trigger = screen.getByRole("button", { name: "Open" });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog", { name: "Test dialog" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("restores focus to the previously focused field after shortcut-open close", () => {
+    function Host() {
+      const triggerRef = useRef<HTMLButtonElement>(null);
+      const [open, setOpen] = useState(false);
+
+      return (
+        <>
+          <input
+            aria-label="Title field"
+            onKeyDown={(event) => {
+              if (event.key === "?") {
+                event.preventDefault();
+                setOpen(true);
+              }
+            }}
+          />
+          <button ref={triggerRef} type="button" aria-label="Help">
+            Help
+          </button>
+          <Dialog title="Test dialog" open={open} onClose={() => setOpen(false)} triggerRef={triggerRef}>
+            <button type="button">First action</button>
+          </Dialog>
+        </>
+      );
+    }
+
+    render(<Host />);
+
+    const titleField = screen.getByRole("textbox", { name: "Title field" });
+    act(() => {
+      titleField.focus();
+    });
+
+    fireEvent.keyDown(titleField, { key: "?" });
+    expect(screen.getByRole("dialog", { name: "Test dialog" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.activeElement).toBe(titleField);
   });
 
   it("traps Tab focus within the dialog", () => {
@@ -51,50 +130,5 @@ describe("Dialog", () => {
     closeButton.focus();
     fireEvent.keyDown(document, { key: "Tab" });
     expect(document.activeElement).toBe(actionA);
-  });
-
-  it("closes on Escape and restores focus to the trigger", () => {
-    const triggerRef = createRef<HTMLButtonElement>();
-    const onClose = vi.fn();
-
-    render(
-      <>
-        <button ref={triggerRef} type="button">
-          Open
-        </button>
-        <Dialog title="Test dialog" open onClose={onClose} triggerRef={triggerRef}>
-          <p>Body</p>
-        </Dialog>
-      </>,
-    );
-
-    act(() => {
-      triggerRef.current?.focus();
-    });
-
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(onClose).toHaveBeenCalledOnce();
-  });
-
-  it("closes on Escape when opened from a button click handler", () => {
-    const onClose = vi.fn();
-
-    function Host() {
-      const triggerRef = createRef<HTMLButtonElement>();
-      return (
-        <>
-          <button ref={triggerRef} type="button">
-            Open
-          </button>
-          <Dialog title="Test dialog" open onClose={onClose} triggerRef={triggerRef}>
-            <p>Body</p>
-          </Dialog>
-        </>
-      );
-    }
-
-    render(<Host />);
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(onClose).toHaveBeenCalledOnce();
   });
 });

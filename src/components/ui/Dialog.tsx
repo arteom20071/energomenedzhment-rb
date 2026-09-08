@@ -25,28 +25,53 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
   );
 }
 
+function isConnectedFocusable(element: HTMLElement | null): element is HTMLElement {
+  if (!element || !element.isConnected) {
+    return false;
+  }
+
+  if (typeof element.focus !== "function") {
+    return false;
+  }
+
+  if (element.hasAttribute("disabled")) {
+    return false;
+  }
+
+  return element.tabIndex !== -1 || element.matches(FOCUSABLE_SELECTOR);
+}
+
 export function Dialog({ title, open, onClose, triggerRef, children }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+
+      const dialog = dialogRef.current;
+      if (dialog) {
+        const focusables = getFocusableElements(dialog);
+        (focusables[0] ?? dialog).focus();
+      }
+    }
+
+    if (!open && wasOpenRef.current) {
+      const restoreTarget = isConnectedFocusable(previouslyFocusedRef.current)
+        ? previouslyFocusedRef.current
+        : triggerRef?.current ?? null;
+
+      restoreTarget?.focus();
+    }
+
+    wasOpenRef.current = open;
+  }, [open, triggerRef]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
-
-    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
-
-    const focusInitial = () => {
-      const dialog = dialogRef.current;
-      if (!dialog) {
-        return;
-      }
-
-      const focusables = getFocusableElements(dialog);
-      (focusables[0] ?? dialog).focus();
-    };
-
-    focusInitial();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -83,15 +108,6 @@ export function Dialog({ title, open, onClose, triggerRef, children }: DialogPro
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose]);
-
-  useEffect(() => {
-    if (open) {
-      return;
-    }
-
-    const restoreTarget = triggerRef?.current ?? previouslyFocusedRef.current;
-    restoreTarget?.focus();
-  }, [open, triggerRef]);
 
   if (!open) {
     return null;

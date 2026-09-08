@@ -12,7 +12,7 @@ describe("LeftToolSidebar", () => {
     expect(tabs[1]).toHaveAttribute("tabindex", "-1");
   });
 
-  it("navigates tool tabs with arrow keys and Home/End", () => {
+  it("focuses the newly active tab when navigating with arrow keys", () => {
     render(
       <LeftToolSidebar
         textPanel={<div>Text panel</div>}
@@ -21,15 +21,24 @@ describe("LeftToolSidebar", () => {
     );
 
     const tablist = screen.getByRole("tablist", { name: "Панели инструментов" });
+    const textTab = screen.getByRole("tab", { name: "Текст" });
 
     fireEvent.keyDown(tablist, { key: "ArrowRight" });
-    expect(screen.getByRole("tab", { name: "Текст" })).toHaveAttribute("tabindex", "0");
-    expect(screen.getByText("Text panel")).toBeInTheDocument();
+    expect(document.activeElement).toBe(textTab);
+    expect(textTab).toHaveAttribute("tabindex", "0");
+  });
+
+  it("focuses first tab on Home and last tab on End", () => {
+    render(<LeftToolSidebar textPanel={<div>Text panel</div>} />);
+
+    const tablist = screen.getByRole("tablist", { name: "Панели инструментов" });
+    const firstTab = screen.getByRole("tab", { name: "ИИ Создать" });
+    const lastTab = screen.getByRole("tab", { name: "Шаблоны" });
 
     fireEvent.keyDown(tablist, { key: "End" });
-    expect(screen.getByRole("tab", { name: "Шаблоны" })).toHaveAttribute("tabindex", "0");
+    expect(document.activeElement).toBe(lastTab);
 
     fireEvent.keyDown(tablist, { key: "Home" });
-    expect(screen.getByRole("tab", { name: "ИИ Создать" })).toHaveAttribute("tabindex", "0");
+    expect(document.activeElement).toBe(firstTab);
   });
 });

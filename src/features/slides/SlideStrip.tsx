@@ -6,9 +6,9 @@ import { useToast } from "../../components/Toast";
 import { IconButton } from "../../components/ui/IconButton";
 import { useEditorStore } from "../../store/editorStore";
 import {
-  buildSlideDeletionOperation,
+  buildSlideDeletionToken,
   createDeletionKind,
-  restoreSlideDeletion,
+  undoSlideDeletion,
 } from "./slideDeletionUndo";
 import { SlideThumbnail } from "./SlideThumbnail";
 
@@ -25,11 +25,7 @@ export function SlideStrip() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const slideIds = useMemo(() => slides.map((slide) => slide.id), [slides]);
-  const { handleKeyDown, getTabProps, setFocusedId } = useRovingTabIndex(
-    slideIds,
-    activeSlideId,
-    "horizontal",
-  );
+  const { handleKeyDown, getTabProps } = useRovingTabIndex(slideIds, activeSlideId, "horizontal");
 
   const performDelete = useCallback(
     (slideId: string) => {
@@ -49,19 +45,17 @@ export function SlideStrip() {
         return;
       }
 
-      const activeSlideIdBefore = stateBefore.activeSlideId;
       deleteSlide(slideId);
       const presentationAfter = structuredClone(store.getState().presentation);
 
-      const operation = buildSlideDeletionOperation({
+      const token = buildSlideDeletionToken({
+        store,
         presentationAfter,
-        deletedSlide,
-        slideIndex,
-        activeSlideIdBefore,
         kind,
+        hadMutation: kind === "remove-slide" || deletedSlide.elements.length > 0,
       });
 
-      if (!operation.hadMutation) {
+      if (!token.hadMutation) {
         return;
       }
 
@@ -71,7 +65,7 @@ export function SlideStrip() {
       showToast(message, {
         label: "Отменить удаление",
         onClick: () => {
-          const result = restoreSlideDeletion(store, operation);
+          const result = undoSlideDeletion(store, token);
           if (!result.success) {
             showToast("Отмена недоступна: документ изменён");
           }
@@ -127,10 +121,8 @@ export function SlideStrip() {
               background={slide.background}
               isActive={slide.id === activeSlideId}
               tabIndex={tabProps.tabIndex}
-              onFocus={() => {
-                tabProps.onFocus();
-                setFocusedId(slide.id);
-              }}
+              tabRef={tabProps.ref}
+              onFocus={tabProps.onFocus}
               onSelect={setActiveSlide}
               onDelete={performDelete}
               onDragStart={setDraggedIndex}
