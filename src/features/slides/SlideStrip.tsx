@@ -1,5 +1,5 @@
 import { Copy, Plus, Trash2 } from "lucide-react";
-import { type DragEvent, useCallback, useMemo, useState } from "react";
+import { type DragEvent, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useRovingTabIndex } from "../../components/useRovingTabIndex";
 import { useToast } from "../../components/Toast";
@@ -8,6 +8,8 @@ import { useEditorStore } from "../../store/editorStore";
 import {
   buildSlideDeletionToken,
   createDeletionKind,
+  isToolbarFocusTransitionWithinStrip,
+  shouldRestoreStripFocusAfterDelete,
   undoSlideDeletion,
 } from "./slideDeletionUndo";
 import { SlideThumbnail } from "./SlideThumbnail";
@@ -23,9 +25,28 @@ export function SlideStrip() {
   const { showToast } = useToast();
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const tablistRef = useRef<HTMLDivElement>(null);
+  const stripSectionRef = useRef<HTMLElement>(null);
+  const pendingToolbarDeleteFocusRestoreRef = useRef(false);
+  const pendingFocusSlideIdRef = useRef<string | null>(null);
 
   const slideIds = useMemo(() => slides.map((slide) => slide.id), [slides]);
-  const { handleKeyDown, getTabProps } = useRovingTabIndex(slideIds, activeSlideId, "horizontal");
+  const { handleKeyDown, getTabProps, focusItem, setFocusedId } = useRovingTabIndex(
+    slideIds,
+    activeSlideId,
+    "horizontal",
+  );
+
+  useLayoutEffect(() => {
+    if (!pendingFocusSlideIdRef.current) {
+      return;
+    }
+
+    const slideIdToFocus = pendingFocusSlideIdRef.current;
+    pendingFocusSlideIdRef.current = null;
+    setFocusedId(slideIdToFocus);
+    focusItem(slideIdToFocus);
+  }, [slides, activeSlideId, focusItem, setFocusedId]);
 
   const performDelete = useCallback(
     (slideId: string) => {
@@ -45,6 +66,12 @@ export function SlideStrip() {
         return;
       }
 
+      const restoreStripFocus = shouldRestoreStripFocusAfterDelete(
+        tablistRef.current,
+        pendingToolbarDeleteFocusRestoreRef.current,
+      );
+      pendingToolbarDeleteFocusRestoreRef.current = false;
+
       deleteSlide(slideId);
       const presentationAfter = structuredClone(store.getState().presentation);
 
@@ -54,6 +81,10 @@ export function SlideStrip() {
         kind,
         hadMutation: kind === "remove-slide" || deletedSlide.elements.length > 0,
       });
+
+      if (restoreStripFocus) {
+        pendingFocusSlideIdRef.current = store.getState().activeSlideId;
+      }
 
       if (!token.hadMutation) {
         return;
@@ -101,15 +132,28 @@ export function SlideStrip() {
 
   return (
     <section
+      ref={stripSectionRef}
       aria-label="Лента слайдов"
       className="flex h-28 shrink-0 items-center gap-2 border-t border-slate-800 bg-slate-900 px-4"
     >
       <div
+        ref={tablistRef}
         role="tablist"
         aria-label="Миниатюры слайдов"
         aria-orientation="horizontal"
         className="flex min-w-0 flex-1 gap-2 overflow-x-auto py-2"
         onKeyDown={onTablistKeyDown}
+        onBlur={(event: React.FocusEvent<HTMLDivElement>) => {
+          if (
+            isToolbarFocusTransitionWithinStrip(
+              tablistRef.current,
+              stripSectionRef.current,
+              event.relatedTarget,
+            )
+          ) {
+            pendingToolbarDeleteFocusRestoreRef.current = true;
+          }
+        }}
       >
         {slides.map((slide, index) => {
           const tabProps = getTabProps(slide.id);

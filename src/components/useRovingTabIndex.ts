@@ -120,5 +120,6 @@ export function useRovingTabIndex<T extends string>(
     setFocusedId: setFocusedOverride,
     handleKeyDown,
     getTabProps,
+    focusItem,
   };
 }

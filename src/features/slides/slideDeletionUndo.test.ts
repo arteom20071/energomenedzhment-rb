@@ -15,6 +15,81 @@ describe("slideDeletionUndo", () => {
     resetIdGenerator();
   });
 
+  it("captures temporal array identity references in the token", () => {
+    const store = createEditorStore({ presentation: createPresentation("Test") });
+    store.getState().addSlide();
+    store.getState().deleteSlide(store.getState().presentation.slides[1]!.id);
+    const after = structuredClone(store.getState().presentation);
+    const temporal = store.temporal.getState();
+
+    const token = buildSlideDeletionToken({
+      store,
+      presentationAfter: after,
+      kind: "remove-slide",
+      hadMutation: true,
+    });
+
+    expect(token.pastStatesRef).toBe(temporal.pastStates);
+    expect(token.pastTopRef).toBe(temporal.pastStates[temporal.pastStates.length - 1]);
+    expect(token.futureStatesRef).toBe(temporal.futureStates);
+  });
+
+  it("rejects stale token after inverse edit restores identical fingerprint at history cap", () => {
+    const store = createEditorStore({ presentation: createPresentation("Test") });
+    store.getState().addSlide();
+
+    for (let index = 0; index < 100; index += 1) {
+      store.getState().renamePresentation(`Title ${index}`);
+    }
+
+    store.getState().deleteSlide(store.getState().presentation.slides[1]!.id);
+    const afterDelete = structuredClone(store.getState().presentation);
+
+    const token = buildSlideDeletionToken({
+      store,
+      presentationAfter: afterDelete,
+      kind: "remove-slide",
+      hadMutation: true,
+    });
+
+    expect(canUndoSlideDeletion(store, token)).toBe(true);
+
+    store.getState().renamePresentation("Transient edit");
+    store.temporal.getState().undo();
+
+    expect(fingerprintPresentation(store.getState().presentation)).toBe(
+      token.postDeleteFingerprint,
+    );
+    expect(canUndoSlideDeletion(store, token)).toBe(false);
+    expect(undoSlideDeletion(store, token)).toEqual({ success: false, reason: "mutated" });
+  });
+
+  it("allows immediate undo at history cap with a fresh token", () => {
+    const store = createEditorStore({ presentation: createPresentation("Test") });
+    store.getState().addSlide();
+
+    for (let index = 0; index < 100; index += 1) {
+      store.getState().renamePresentation(`Title ${index}`);
+    }
+
+    const deletedSlideId = store.getState().presentation.slides[1]!.id;
+    store.getState().deleteSlide(deletedSlideId);
+    const afterDelete = structuredClone(store.getState().presentation);
+
+    const token = buildSlideDeletionToken({
+      store,
+      presentationAfter: afterDelete,
+      kind: "remove-slide",
+      hadMutation: true,
+    });
+
+    expect(undoSlideDeletion(store, token)).toEqual({ success: true });
+    expect(store.getState().presentation.slides).toHaveLength(2);
+    expect(store.getState().presentation.slides.some((slide) => slide.id === deletedSlideId)).toBe(
+      true,
+    );
+  });
+
   it("builds a token with post-delete fingerprint and temporal position", () => {
     const store = createEditorStore({ presentation: createPresentation("Test") });
     store.getState().addSlide();

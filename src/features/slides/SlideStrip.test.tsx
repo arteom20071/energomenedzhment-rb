@@ -194,6 +194,67 @@ describe("SlideStrip", () => {
     expect(firstTab).toHaveAttribute("tabindex", "0");
   });
 
+  it("focuses remaining tab after deleting via per-thumbnail delete button", () => {
+    useEditorStore.getState().addSlide();
+    useEditorStore.getState().setActiveSlide(useEditorStore.getState().presentation.slides[0]!.id);
+    renderStrip();
+
+    const deleteButton = screen.getByRole("button", { name: "Удалить слайд 2" });
+    act(() => {
+      deleteButton.focus();
+    });
+    fireEvent.click(deleteButton);
+
+    const remainingTab = screen.getByRole("tab", { name: "Слайд 1" });
+    expect(document.activeElement).toBe(remainingTab);
+  });
+
+  it("focuses remaining tab after deleting focused active thumbnail via toolbar", () => {
+    useEditorStore.getState().addSlide();
+    renderStrip();
+
+    const activeTab = screen.getByRole("tab", { name: "Слайд 2" });
+    act(() => {
+      activeTab.focus();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Удалить слайд" }));
+
+    const remainingTab = screen.getByRole("tab", { name: "Слайд 1" });
+    expect(document.activeElement).toBe(remainingTab);
+  });
+
+  it("does not steal focus when deleting from toolbar while toolbar is focused", () => {
+    useEditorStore.getState().addSlide();
+    renderStrip();
+
+    const toolbarDelete = screen.getByRole("button", { name: "Удалить слайд" });
+    act(() => {
+      toolbarDelete.focus();
+    });
+    fireEvent.click(toolbarDelete);
+
+    expect(document.activeElement).toBe(toolbarDelete);
+  });
+
+  it("focuses remaining tab after deleting non-active slide via per-thumbnail button", () => {
+    useEditorStore.getState().addSlide();
+    useEditorStore.getState().setActiveSlide(useEditorStore.getState().presentation.slides[0]!.id);
+    renderStrip();
+
+    const deleteButton = screen.getByRole("button", { name: "Удалить слайд 2" });
+    act(() => {
+      deleteButton.focus();
+    });
+    fireEvent.click(deleteButton);
+
+    const remainingTab = screen.getByRole("tab", { name: "Слайд 1" });
+    expect(document.activeElement).toBe(remainingTab);
+    expect(useEditorStore.getState().activeSlideId).toBe(
+      useEditorStore.getState().presentation.slides[0]!.id,
+    );
+  });
+
   it("normalizes roving focus when the focused slide is deleted", () => {
     useEditorStore.getState().addSlide();
     renderStrip();

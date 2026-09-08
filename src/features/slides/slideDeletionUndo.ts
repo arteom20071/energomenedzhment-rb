@@ -9,6 +9,9 @@ export interface SlideDeletionToken {
   pastStatesLength: number;
   futureStatesLength: number;
   hadMutation: boolean;
+  pastStatesRef: readonly unknown[];
+  pastTopRef: unknown;
+  futureStatesRef: readonly unknown[];
 }
 
 interface BuildSlideDeletionTokenInput {
@@ -26,27 +29,42 @@ export function buildSlideDeletionToken(
   input: BuildSlideDeletionTokenInput,
 ): SlideDeletionToken {
   const temporal = input.store.temporal.getState();
+  const pastStates = temporal.pastStates;
 
   return {
     kind: input.kind,
     postDeleteFingerprint: fingerprintPresentation(input.presentationAfter),
-    pastStatesLength: temporal.pastStates.length,
+    pastStatesLength: pastStates.length,
     futureStatesLength: temporal.futureStates.length,
     hadMutation: input.hadMutation,
+    pastStatesRef: pastStates,
+    pastTopRef: pastStates[pastStates.length - 1],
+    futureStatesRef: temporal.futureStates,
   };
+}
+
+function temporalIdentityMatches(
+  store: EditorStoreApi,
+  token: SlideDeletionToken,
+): boolean {
+  const temporal = store.temporal.getState();
+
+  return (
+    temporal.pastStates === token.pastStatesRef &&
+    temporal.pastStates[temporal.pastStates.length - 1] === token.pastTopRef &&
+    temporal.futureStates === token.futureStatesRef
+  );
 }
 
 export function canUndoSlideDeletion(
   store: EditorStoreApi,
   token: SlideDeletionToken,
 ): boolean {
-  const temporal = store.temporal.getState();
   const currentPresentation = store.getState().presentation;
 
   return (
     fingerprintPresentation(currentPresentation) === token.postDeleteFingerprint &&
-    temporal.pastStates.length === token.pastStatesLength &&
-    temporal.futureStates.length === token.futureStatesLength
+    temporalIdentityMatches(store, token)
   );
 }
 
@@ -64,4 +82,35 @@ export function undoSlideDeletion(
 
 export function createDeletionKind(slideCount: number): SlideDeletionKind {
   return slideCount === 1 ? "clear-contents" : "remove-slide";
+}
+
+function isStripTablistFocusTarget(tablistElement: HTMLElement | null): boolean {
+  const activeElement = document.activeElement;
+  if (!(activeElement instanceof HTMLElement) || !tablistElement) {
+    return false;
+  }
+
+  return tablistElement.contains(activeElement);
+}
+
+export function shouldRestoreStripFocusAfterDelete(
+  tablistElement: HTMLElement | null,
+  pendingToolbarTransition: boolean,
+): boolean {
+  return isStripTablistFocusTarget(tablistElement) || pendingToolbarTransition;
+}
+
+export function isToolbarFocusTransitionWithinStrip(
+  tablistElement: HTMLElement | null,
+  stripSectionElement: HTMLElement | null,
+  relatedTarget: EventTarget | null,
+): boolean {
+  if (!(relatedTarget instanceof HTMLElement) || !stripSectionElement || !tablistElement) {
+    return false;
+  }
+
+  return (
+    stripSectionElement.contains(relatedTarget) &&
+    !tablistElement.contains(relatedTarget)
+  );
 }
