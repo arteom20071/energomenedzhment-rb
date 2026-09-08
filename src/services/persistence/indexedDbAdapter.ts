@@ -39,29 +39,58 @@ export function createIndexedDbFacade(): IDBFacade {
     });
   };
 
-  const runTransaction = async <T>(
+  const runTransaction = <T>(
     store: StoreName,
     mode: IDBTransactionMode,
     operation: (objectStore: IDBObjectStore) => IDBRequest<T>,
   ): Promise<T> => {
-    const database = await openDatabase();
-    return new Promise((resolve, reject) => {
-      const transaction = database.transaction(store, mode);
-      const objectStore = transaction.objectStore(store);
-      const request = operation(objectStore);
+    return openDatabase().then(
+      (database) =>
+        new Promise<T>((resolve, reject) => {
+          let settled = false;
+          let result: T | undefined;
 
-      request.onsuccess = () => {
-        resolve(request.result as T);
-      };
+          const settleResolve = (value: T) => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            resolve(value);
+          };
 
-      request.onerror = () => {
-        reject(request.error ?? new Error("IndexedDB transaction failed"));
-      };
+          const settleReject = (error: unknown) => {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            reject(error instanceof Error ? error : new Error(String(error)));
+          };
 
-      transaction.onerror = () => {
-        reject(transaction.error ?? new Error("IndexedDB transaction failed"));
-      };
-    });
+          const transaction = database.transaction(store, mode);
+          const objectStore = transaction.objectStore(store);
+          const request = operation(objectStore);
+
+          request.onsuccess = () => {
+            result = request.result as T;
+          };
+
+          request.onerror = () => {
+            settleReject(request.error ?? new Error("IndexedDB request failed"));
+          };
+
+          transaction.oncomplete = () => {
+            settleResolve(result as T);
+          };
+
+          transaction.onabort = () => {
+            settleReject(transaction.error ?? new DOMException("Transaction aborted", "AbortError"));
+          };
+
+          transaction.onerror = () => {
+            settleReject(transaction.error ?? new Error("IndexedDB transaction failed"));
+          };
+        }),
+    );
   };
 
   return {

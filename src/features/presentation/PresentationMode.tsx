@@ -2,6 +2,16 @@ import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import type { Presentation, Slide, SlideElement } from "../../domain/presentation";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../domain/presentation";
+import {
+  serializeBorder,
+  serializeColor,
+  serializeFontFamily,
+  serializeFontWeight,
+  serializeLineHeight,
+  serializeObjectFit,
+  serializePlainText,
+  serializeTextAlign,
+} from "../../services/export/cssSafety";
 import { tryEnterFullscreen, tryExitFullscreen } from "./usePresentationMode";
 
 export interface PresentationModeProps {
@@ -12,116 +22,135 @@ export interface PresentationModeProps {
   exitFullscreen?: () => Promise<void>;
 }
 
-function renderTextElement(element: SlideElement): ReactElement {
+function renderTextInner(element: SlideElement): ReactElement {
   const styles = element.styles as Record<string, unknown>;
   return (
     <div
-      key={element.id}
-      className={`presentation-element animation-${element.animation ?? "none"}`}
+      className="element-inner text-content"
       style={{
-        position: "absolute",
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        transform: `rotate(${element.rotation}deg)`,
-        zIndex: element.zIndex,
         fontSize: typeof styles.fontSize === "number" ? styles.fontSize : 32,
-        color: typeof styles.color === "string" ? styles.color : "#111827",
-        fontFamily: typeof styles.fontFamily === "string" ? styles.fontFamily : "Inter, sans-serif",
-        fontWeight: typeof styles.fontWeight === "string" ? styles.fontWeight : "normal",
-        textAlign: (typeof styles.textAlign === "string" ? styles.textAlign : "left") as
-          | "left"
-          | "center"
-          | "right",
-        lineHeight: typeof styles.lineHeight === "number" ? styles.lineHeight : 1.2,
+        color: serializeColor(styles.color, "#111827"),
+        fontFamily: serializeFontFamily(styles.fontFamily, "Inter, sans-serif"),
+        fontWeight: serializeFontWeight(styles.fontWeight, "normal"),
+        textAlign: serializeTextAlign(styles.textAlign, "left") as "left" | "center" | "right",
+        lineHeight: Number(serializeLineHeight(styles.lineHeight, 1.2)),
         whiteSpace: "pre-wrap",
+        width: "100%",
+        height: "100%",
       }}
     >
-      {element.content ?? ""}
+      {serializePlainText(element.content)}
     </div>
   );
 }
 
-function renderImageElement(element: SlideElement): ReactElement {
+function renderImageInner(element: SlideElement): ReactElement {
   const styles = element.styles as Record<string, unknown>;
   return (
-    <div
-      key={element.id}
-      className={`presentation-element animation-${element.animation ?? "none"}`}
+    <img
+      className="element-inner"
+      src={serializePlainText(element.content)}
+      alt={serializePlainText(styles.alt)}
       style={{
-        position: "absolute",
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        transform: `rotate(${element.rotation}deg)`,
-        zIndex: element.zIndex,
-        overflow: "hidden",
+        width: "100%",
+        height: "100%",
+        objectFit: serializeObjectFit(styles.objectFit, "cover") as "cover" | "contain" | "fill",
       }}
-    >
-      <img
-        src={element.content ?? ""}
-        alt={typeof styles.alt === "string" ? styles.alt : ""}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: (typeof styles.objectFit === "string" ? styles.objectFit : "cover") as
-            | "cover"
-            | "contain"
-            | "fill",
-        }}
-      />
-    </div>
+    />
   );
 }
 
-function renderShapeElement(element: SlideElement): ReactElement {
+function renderShapeInner(element: SlideElement): ReactElement {
   const styles = element.styles as Record<string, unknown>;
   return (
     <div
-      key={element.id}
-      className={`presentation-element animation-${element.animation ?? "none"}`}
+      className="element-inner shape-content"
       style={{
-        position: "absolute",
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        transform: `rotate(${element.rotation}deg)`,
-        zIndex: element.zIndex,
-        background: typeof styles.fill === "string" ? styles.fill : "#6366f1",
+        width: "100%",
+        height: "100%",
+        background: serializeColor(styles.fill, "#6366f1"),
         borderRadius: typeof styles.borderRadius === "number" ? styles.borderRadius : 0,
-        border: typeof styles.border === "string" ? styles.border : "none",
+        border: serializeBorder(styles.border, "none"),
       }}
     />
   );
 }
 
 function renderElement(element: SlideElement): ReactElement | null {
+  const outerStyle = {
+    position: "absolute" as const,
+    left: element.x,
+    top: element.y,
+    width: element.width,
+    height: element.height,
+    transform: `rotate(${element.rotation}deg)`,
+    zIndex: element.zIndex,
+  };
+
   switch (element.type) {
     case "text":
-      return renderTextElement(element);
+      return (
+        <div
+          key={element.id}
+          className={`element-outer ${element.type}`}
+          data-animation={element.animation ?? ""}
+          style={outerStyle}
+        >
+          {renderTextInner(element)}
+        </div>
+      );
     case "image":
-      return renderImageElement(element);
+      return (
+        <div
+          key={element.id}
+          className={`element-outer ${element.type}`}
+          data-animation={element.animation ?? ""}
+          style={outerStyle}
+        >
+          {renderImageInner(element)}
+        </div>
+      );
     case "shape":
-      return renderShapeElement(element);
+      return (
+        <div
+          key={element.id}
+          className={`element-outer ${element.type}`}
+          data-animation={element.animation ?? ""}
+          style={outerStyle}
+        >
+          {renderShapeInner(element)}
+        </div>
+      );
     default:
       return null;
   }
 }
 
-function renderSlide(slide: Slide, transitionClass: string): ReactElement {
+function renderSlide(slide: Slide, transitionClass: string, slideIndex: number): ReactElement {
   const elements = [...slide.elements].sort((a, b) => a.zIndex - b.zIndex);
+
+  const activateSlide = (node: HTMLDivElement | null) => {
+    if (!node) {
+      return;
+    }
+    node.classList.add("stage-enter");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        node.classList.add("stage-active");
+      });
+    });
+  };
 
   return (
     <div
-      className={`presentation-slide ${transitionClass}`}
+      key={slideIndex}
+      ref={activateSlide}
+      className={`presentation-slide ${transitionClass} stage-enter`}
       style={{
         position: "relative",
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
-        background: slide.background,
+        background: serializeColor(slide.background, "#ffffff"),
       }}
     >
       {elements.map(renderElement)}
@@ -139,6 +168,7 @@ export function PresentationMode({
   const containerRef = useRef<HTMLDivElement>(null);
   const slide = presentation.slides[currentSlideIndex];
   const [scale, setScale] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     const updateScale = () => {
@@ -161,6 +191,14 @@ export function PresentationMode({
     };
   }, [requestFullscreen, exitFullscreen]);
 
+  useEffect(() => {
+    const syncFullscreen = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreen);
+  }, []);
+
   if (!slide) {
     return (
       <div className="presentation-mode" data-testid="presentation-mode">
@@ -178,6 +216,7 @@ export function PresentationMode({
       ref={containerRef}
       className="presentation-mode"
       data-testid="presentation-mode"
+      data-fullscreen={isFullscreen ? "true" : "false"}
       role="region"
       aria-label="Режим презентации"
       style={{
@@ -197,7 +236,7 @@ export function PresentationMode({
           transformOrigin: "center center",
         }}
       >
-        {renderSlide(slide, transitionClass)}
+        {renderSlide(slide, transitionClass, currentSlideIndex)}
       </div>
       <button
         type="button"
@@ -218,9 +257,16 @@ export function PresentationMode({
         Выйти (Esc)
       </button>
       <style>{`
-        .presentation-element.animation-fade-up { animation: presFadeUp 0.6s ease both; }
-        .presentation-element.animation-scale { animation: presScale 0.5s ease both; }
-        .presentation-element.animation-bounce { animation: presBounce 0.7s ease both; }
+        .presentation-slide { transition: opacity 0.4s ease, transform 0.4s ease; opacity: 1; }
+        .presentation-slide.stage-enter.transition-slide { transform: translateX(100%); }
+        .presentation-slide.stage-enter.transition-slide.stage-active { transform: translateX(0); }
+        .presentation-slide.stage-enter.transition-zoom { transform: scale(0.85); }
+        .presentation-slide.stage-enter.transition-zoom.stage-active { transform: scale(1); }
+        .element-outer { position: absolute; }
+        .element-inner { width: 100%; height: 100%; }
+        .element-outer[data-animation="fade-up"] .element-inner { animation: presFadeUp 0.6s ease both; }
+        .element-outer[data-animation="scale"] .element-inner { animation: presScale 0.5s ease both; }
+        .element-outer[data-animation="bounce"] .element-inner { animation: presBounce 0.7s ease both; }
         @keyframes presFadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes presScale { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
         @keyframes presBounce { 0% { opacity: 0; transform: scale(0.3); } 50% { transform: scale(1.05); } 70% { transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }

@@ -1,6 +1,25 @@
 import type { Presentation, Slide, SlideElement } from "../../domain/presentation";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../domain/presentation";
 import { parsePresentation } from "../../domain/presentation";
+import {
+  serializeBorder,
+  serializeColor,
+  serializeFontFamily,
+  serializeFontWeight,
+  serializeLineHeight,
+  serializeObjectFit,
+  serializePlainText,
+  serializePosition,
+  serializePxNumber,
+  serializeRotation,
+  serializeTextAlign,
+  serializeZIndex,
+} from "./cssSafety";
+import { sanitizeHtmlFilename } from "./filenameSanitizer";
+import {
+  exportPresentationJson,
+  type AssetResolver,
+} from "./jsonExporter";
 
 function escapeHtml(text: string): string {
   return text
@@ -15,37 +34,30 @@ function escapeScriptJson(json: string): string {
   return json.replace(/<\//g, "<\\/");
 }
 
+function renderElementShell(
+  element: SlideElement,
+  innerHtml: string,
+): string {
+  return `<div class="element-outer ${element.type}" data-animation="${element.animation ?? ""}" style="left:${serializePosition(element.x)};top:${serializePosition(element.y)};width:${serializePosition(element.width)};height:${serializePosition(element.height)};transform:rotate(${serializeRotation(element.rotation)});z-index:${serializeZIndex(element.zIndex)};"><div class="element-inner">${innerHtml}</div></div>`;
+}
+
 function renderTextElement(element: SlideElement): string {
   const styles = element.styles as Record<string, unknown>;
-  const fontSize = typeof styles.fontSize === "number" ? `${styles.fontSize}px` : "32px";
-  const color = typeof styles.color === "string" ? styles.color : "#111827";
-  const fontFamily =
-    typeof styles.fontFamily === "string" ? styles.fontFamily : "Inter, sans-serif";
-  const fontWeight = typeof styles.fontWeight === "string" ? styles.fontWeight : "normal";
-  const textAlign = typeof styles.textAlign === "string" ? styles.textAlign : "left";
-  const lineHeight =
-    typeof styles.lineHeight === "number" ? String(styles.lineHeight) : "1.2";
-
-  return `<div class="element text" data-animation="${element.animation ?? ""}" style="left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;transform:rotate(${element.rotation}deg);z-index:${element.zIndex};font-size:${fontSize};color:${escapeHtml(color)};font-family:${escapeHtml(fontFamily)};font-weight:${escapeHtml(fontWeight)};text-align:${escapeHtml(textAlign)};line-height:${lineHeight};">${escapeHtml(element.content ?? "")}</div>`;
+  const inner = `<div class="text-content" style="font-size:${serializePxNumber(styles.fontSize, 32)};color:${serializeColor(styles.color, "#111827")};font-family:${serializeFontFamily(styles.fontFamily, "Inter, sans-serif")};font-weight:${serializeFontWeight(styles.fontWeight, "normal")};text-align:${serializeTextAlign(styles.textAlign, "left")};line-height:${serializeLineHeight(styles.lineHeight, 1.2)};">${escapeHtml(serializePlainText(element.content))}</div>`;
+  return renderElementShell(element, inner);
 }
 
 function renderImageElement(element: SlideElement): string {
   const styles = element.styles as Record<string, unknown>;
-  const objectFit = typeof styles.objectFit === "string" ? styles.objectFit : "cover";
-  const alt = typeof styles.alt === "string" ? styles.alt : "";
-  const src = element.content ?? "";
-
-  return `<div class="element image" data-animation="${element.animation ?? ""}" style="left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;transform:rotate(${element.rotation}deg);z-index:${element.zIndex};overflow:hidden;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" style="width:100%;height:100%;object-fit:${escapeHtml(objectFit)};" /></div>`;
+  const src = serializePlainText(element.content);
+  const inner = `<img src="${escapeHtml(src)}" alt="${escapeHtml(serializePlainText(styles.alt))}" style="width:100%;height:100%;object-fit:${serializeObjectFit(styles.objectFit, "cover")};" />`;
+  return renderElementShell(element, inner);
 }
 
 function renderShapeElement(element: SlideElement): string {
   const styles = element.styles as Record<string, unknown>;
-  const fill = typeof styles.fill === "string" ? styles.fill : "#6366f1";
-  const borderRadius =
-    typeof styles.borderRadius === "number" ? `${styles.borderRadius}px` : "0px";
-  const border = typeof styles.border === "string" ? styles.border : "none";
-
-  return `<div class="element shape" data-animation="${element.animation ?? ""}" style="left:${element.x}px;top:${element.y}px;width:${element.width}px;height:${element.height}px;transform:rotate(${element.rotation}deg);z-index:${element.zIndex};background:${escapeHtml(fill)};border-radius:${borderRadius};border:${escapeHtml(border)};"></div>`;
+  const inner = `<div class="shape-content" style="width:100%;height:100%;background:${serializeColor(styles.fill, "#6366f1")};border-radius:${serializePxNumber(styles.borderRadius, 0)};border:${serializeBorder(styles.border, "none")};"></div>`;
+  return renderElementShell(element, inner);
 }
 
 function renderElement(element: SlideElement): string {
@@ -67,10 +79,10 @@ function renderSlide(slide: Slide, index: number): string {
     .map(renderElement)
     .join("\n");
 
-  return `<section class="slide" data-index="${index}" data-transition="${slide.transition}" style="background:${escapeHtml(slide.background)};">${elements}</section>`;
+  return `<section class="slide" data-index="${index}" data-transition="${slide.transition}" style="background:${serializeColor(slide.background, "#ffffff")};">${elements}</section>`;
 }
 
-export function generateStandaloneHtml(presentation: Presentation): string {
+export function generateStandaloneHtmlFromResolved(presentation: Presentation): string {
   const validated = parsePresentation(presentation);
   if (!validated.success) {
     throw new Error("Invalid presentation for HTML export");
@@ -90,17 +102,17 @@ export function generateStandaloneHtml(presentation: Presentation): string {
     html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: Inter, sans-serif; }
     #deck { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
     .viewport { position: relative; width: ${CANVAS_WIDTH}px; height: ${CANVAS_HEIGHT}px; transform-origin: center center; }
-    .slide { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease; }
+    .slide { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; transform: translateX(0) scale(1); }
     .slide.active { opacity: 1; pointer-events: auto; }
-    .slide.transition-slide.enter { transform: translateX(100%); }
-    .slide.transition-slide.enter.active { transform: translateX(0); }
-    .slide.transition-slide.exit { transform: translateX(-100%); }
-    .slide.transition-zoom.enter { transform: scale(0.85); }
-    .slide.transition-zoom.enter.active { transform: scale(1); }
-    .element { position: absolute; }
-    .element[data-animation="fade-up"] { animation: fadeUp 0.6s ease both; }
-    .element[data-animation="scale"] { animation: scaleIn 0.5s ease both; }
-    .element[data-animation="bounce"] { animation: bounceIn 0.7s ease both; }
+    .slide.stage-enter.transition-slide { transform: translateX(100%); }
+    .slide.stage-enter.transition-slide.stage-active { transform: translateX(0); }
+    .slide.stage-enter.transition-zoom { transform: scale(0.85); }
+    .slide.stage-enter.transition-zoom.stage-active { transform: scale(1); }
+    .element-outer { position: absolute; }
+    .element-inner { width: 100%; height: 100%; }
+    .element-outer[data-animation="fade-up"] .element-inner { animation: fadeUp 0.6s ease both; }
+    .element-outer[data-animation="scale"] .element-inner { animation: scaleIn 0.5s ease both; }
+    .element-outer[data-animation="bounce"] .element-inner { animation: bounceIn 0.7s ease both; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes scaleIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
     @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.3); } 50% { transform: scale(1.05); } 70% { transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
@@ -135,19 +147,20 @@ export function generateStandaloneHtml(presentation: Presentation): string {
         var scale = Math.min(window.innerWidth / ${CANVAS_WIDTH}, window.innerHeight / ${CANVAS_HEIGHT});
         viewport.style.transform = 'scale(' + scale + ')';
       }
-      function applyTransition(from, to) {
-        var next = slides[to];
-        var transition = next.getAttribute('data-transition') || 'fade';
-        slides.forEach(function (slide, index) {
-          slide.classList.remove('active', 'enter', 'exit', 'transition-slide', 'transition-zoom');
-          if (index === to) {
-            slide.classList.add('active');
-            if (transition === 'slide') slide.classList.add('transition-slide', 'enter', 'active');
-            if (transition === 'zoom') slide.classList.add('transition-zoom', 'enter', 'active');
-          }
+      function stageSlide(index) {
+        var slide = slides[index];
+        var transition = slide.getAttribute('data-transition') || 'fade';
+        slides.forEach(function (item) {
+          item.classList.remove('active', 'stage-enter', 'stage-active', 'transition-slide', 'transition-zoom');
         });
-        current = to;
-        updateDots();
+        slide.classList.add('active', 'stage-enter');
+        if (transition === 'slide') slide.classList.add('transition-slide');
+        if (transition === 'zoom') slide.classList.add('transition-zoom');
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            slide.classList.add('stage-active');
+          });
+        });
       }
       function updateDots() {
         var dotButtons = dots.querySelectorAll('.dot');
@@ -157,7 +170,9 @@ export function generateStandaloneHtml(presentation: Presentation): string {
       }
       function goTo(index) {
         if (index < 0 || index >= slides.length || index === current) return;
-        applyTransition(current, index);
+        current = index;
+        stageSlide(index);
+        updateDots();
       }
       function next() { goTo(Math.min(slides.length - 1, current + 1)); }
       function prev() { goTo(Math.max(0, current - 1)); }
@@ -179,22 +194,35 @@ export function generateStandaloneHtml(presentation: Presentation): string {
       });
       window.addEventListener('resize', scaleViewport);
       scaleViewport();
-      slides[0].classList.add('active');
+      stageSlide(0);
     })();
   </script>
 </body>
 </html>`;
 }
 
+export async function generateStandaloneHtml(
+  presentation: Presentation,
+  resolveAsset: AssetResolver,
+): Promise<{ success: true; html: string; filename: string } | { success: false; error: string }> {
+  const resolved = await exportPresentationJson(presentation, resolveAsset);
+  if (!resolved.success) {
+    return { success: false, error: resolved.error };
+  }
+
+  const parsed = parsePresentation(JSON.parse(resolved.json));
+  if (!parsed.success) {
+    const first = parsed.errors[0]!;
+    return { success: false, error: `${first.path}: ${first.message}` };
+  }
+
+  return {
+    success: true,
+    html: generateStandaloneHtmlFromResolved(parsed.data),
+    filename: sanitizeHtmlFilename(parsed.data.title),
+  };
+}
+
 export function sanitizeFilename(title: string): string {
-  const sanitized = [...title.trim()]
-    .filter((char) => {
-      const code = char.charCodeAt(0);
-      return code >= 32 && !'<>:"/\\|?*'.includes(char);
-    })
-    .join("")
-    .replace(/\s+/g, "-")
-    .slice(0, 80);
-  const base = sanitized.length > 0 ? sanitized : "presentation";
-  return `${base}.html`;
+  return sanitizeHtmlFilename(title);
 }

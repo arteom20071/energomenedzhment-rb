@@ -34,6 +34,24 @@ function clampIndex(index: number, count: number): number {
   return Math.min(count - 1, Math.max(0, index));
 }
 
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    return true;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  const contentEditable = target.getAttribute("contenteditable");
+  return contentEditable === "" || contentEditable === "true";
+}
+
 export function usePresentationMode(
   options: UsePresentationModeOptions,
 ): PresentationModeController {
@@ -98,6 +116,10 @@ export function usePresentationMode(
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+
       if (!state.isActive) {
         if (event.key === "F5") {
           event.preventDefault();
@@ -145,6 +167,20 @@ export function usePresentationMode(
     };
   }, [handleKeyDown]);
 
+  useEffect(() => {
+    const syncFullscreen = () => {
+      setState((prev) => ({
+        ...prev,
+        isFullscreen: Boolean(document.fullscreenElement),
+      }));
+    };
+
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreen);
+    };
+  }, []);
+
   return {
     state,
     enter,
@@ -162,20 +198,29 @@ export function tryEnterFullscreen(
   element: HTMLElement,
   requestFullscreen?: (target: HTMLElement) => Promise<void>,
 ): Promise<boolean> {
-  const request = requestFullscreen ?? ((target) => target.requestFullscreen());
-  return request(element)
-    .then(() => true)
-    .catch(() => false);
+  try {
+    const request = requestFullscreen ?? ((target) => target.requestFullscreen());
+    return request(element)
+      .then(() => true)
+      .catch(() => false);
+  } catch {
+    return Promise.resolve(false);
+  }
 }
 
 export function tryExitFullscreen(
   exitFullscreen?: () => Promise<void>,
 ): Promise<boolean> {
-  const exit = exitFullscreen ?? (() => document.exitFullscreen());
   if (!document.fullscreenElement) {
     return Promise.resolve(false);
   }
-  return exit()
-    .then(() => true)
-    .catch(() => false);
+
+  try {
+    const exit = exitFullscreen ?? (() => document.exitFullscreen());
+    return exit()
+      .then(() => true)
+      .catch(() => false);
+  } catch {
+    return Promise.resolve(false);
+  }
 }

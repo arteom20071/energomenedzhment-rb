@@ -27,62 +27,64 @@ export function createAutosaveCoordinator(options: AutosaveCoordinatorOptions): 
   const debounceMs = options.debounceMs ?? 500;
   let status: AutosaveStatus = "idle";
   let revision = 0;
+  let lastPersistedRevision = 0;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
-  let inFlightRevision: number | null = null;
   let latestSnapshot: AutosaveSnapshot | null = null;
+  let cancelled = false;
+  let writerChain: Promise<void> = Promise.resolve();
 
   const setStatus = (next: AutosaveStatus, error?: PersistenceError) => {
     status = next;
     options.onStatusChange?.(next, error);
   };
 
-  const scheduleSave = () => {
+  const runWriter = async (): Promise<void> => {
+    while (!cancelled && latestSnapshot && latestSnapshot.revision > lastPersistedRevision) {
+      const snapshot = latestSnapshot;
+      setStatus("saving");
+
+      try {
+        await options.save(snapshot);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (latestSnapshot.revision === snapshot.revision) {
+          lastPersistedRevision = snapshot.revision;
+          setStatus("saved");
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (latestSnapshot.revision <= snapshot.revision) {
+          setStatus("error", classifyPersistenceError(error));
+        }
+        return;
+      }
+    }
+  };
+
+  const enqueueWrite = (): void => {
+    writerChain = writerChain.then(runWriter);
+  };
+
+  const scheduleSave = (): void => {
     if (pendingTimer) {
       clearTimeout(pendingTimer);
     }
 
     pendingTimer = setTimeout(() => {
       pendingTimer = null;
-      void performSave();
+      enqueueWrite();
     }, debounceMs);
-  };
-
-  const performSave = async (): Promise<void> => {
-    if (!latestSnapshot) {
-      return;
-    }
-
-    const snapshot = latestSnapshot;
-    inFlightRevision = snapshot.revision;
-    setStatus("saving");
-
-    try {
-      await options.save(snapshot);
-
-      if (inFlightRevision !== snapshot.revision) {
-        if (latestSnapshot && latestSnapshot.revision > snapshot.revision) {
-          scheduleSave();
-        }
-        return;
-      }
-
-      if (latestSnapshot?.revision === snapshot.revision) {
-        setStatus("saved");
-      }
-    } catch (error) {
-      const classified = classifyPersistenceError(error);
-      if (inFlightRevision === snapshot.revision) {
-        setStatus("error", classified);
-      }
-    } finally {
-      if (inFlightRevision === snapshot.revision) {
-        inFlightRevision = null;
-      }
-    }
   };
 
   return {
     markDirty(presentation, documentId) {
+      cancelled = false;
       revision += 1;
       latestSnapshot = { documentId, presentation, revision };
       setStatus("dirty");
@@ -94,7 +96,8 @@ export function createAutosaveCoordinator(options: AutosaveCoordinatorOptions): 
         clearTimeout(pendingTimer);
         pendingTimer = null;
       }
-      await performSave();
+      enqueueWrite();
+      await writerChain;
     },
 
     cancel() {
@@ -102,6 +105,7 @@ export function createAutosaveCoordinator(options: AutosaveCoordinatorOptions): 
         clearTimeout(pendingTimer);
         pendingTimer = null;
       }
+      cancelled = true;
       latestSnapshot = null;
       setStatus("idle");
     },

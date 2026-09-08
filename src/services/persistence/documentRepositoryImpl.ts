@@ -5,8 +5,8 @@ import { validateDocumentRecord } from "./documentRepository";
 export function createDocumentRepository(idb: IDBFacade): DocumentRepository {
   return {
     async save(record: DocumentRecord): Promise<void> {
-      validateDocumentRecord(record);
-      await idb.put("documents", record.id, record);
+      const validated = validateDocumentRecord(record);
+      await idb.put("documents", validated.id, validated);
     },
 
     async load(id: string): Promise<DocumentRecord | undefined> {

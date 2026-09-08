@@ -2,78 +2,77 @@ import type { Presentation, SlideElement } from "../../domain/presentation";
 import { parsePresentation } from "../../domain/presentation";
 import { parseAssetReference } from "../persistence/assetRepository";
 import { EXPORT_ERRORS } from "./errors";
+import { sanitizeJsonFilename } from "./filenameSanitizer";
+import {
+  type AssetResolver,
+  isSafeImageDataUrl,
+  resolveImageContent,
+} from "./imageContent";
 
-export type AssetResolver = (reference: string) => Promise<string | null>;
-
-const DATA_URL_PATTERN = /^data:[^;]+;base64,/;
-
-function isDataUrl(value: string): boolean {
-  return DATA_URL_PATTERN.test(value);
-}
-
-async function resolveElementContent(
-  content: string | undefined,
-  resolveAsset: AssetResolver,
-): Promise<string | undefined> {
-  if (content === undefined) {
-    return undefined;
-  }
-
-  if (isDataUrl(content)) {
-    return content;
-  }
-
-  const assetId = parseAssetReference(content);
-  if (assetId) {
-    const resolved = await resolveAsset(content);
-    return resolved ?? content;
-  }
-
-  if (content.startsWith("blob:")) {
-    const resolved = await resolveAsset(content);
-    return resolved ?? content;
-  }
-
-  return content;
-}
+export type { AssetResolver } from "./imageContent";
 
 async function resolveSlideElements(
   elements: SlideElement[],
+  slideIndex: number,
   resolveAsset: AssetResolver,
-): Promise<SlideElement[]> {
-  return Promise.all(
-    elements.map(async (element) => {
-      if (element.type !== "image") {
-        return element;
+): Promise<{ success: true; elements: SlideElement[] } | { success: false; error: string }> {
+  const resolved: SlideElement[] = [];
+
+  for (const [elementIndex, element] of elements.entries()) {
+    if (element.type !== "image") {
+      resolved.push(element);
+      continue;
+    }
+
+    const path = `slides[${slideIndex}].elements[${elementIndex}].content`;
+    const contentResult = await resolveImageContent(element.content, resolveAsset, path);
+    if (!contentResult.success) {
+      return { success: false, error: contentResult.error };
+    }
+
+    const styles = { ...element.styles };
+    for (const [key, value] of Object.entries(styles)) {
+      if (typeof value !== "string") {
+        continue;
       }
 
-      const content = await resolveElementContent(element.content, resolveAsset);
-      const styles = { ...element.styles };
+      if (isSafeImageDataUrl(value)) {
+        continue;
+      }
 
-      for (const [key, value] of Object.entries(styles)) {
-        if (typeof value === "string") {
-          const resolved = await resolveElementContent(value, resolveAsset);
-          if (resolved !== undefined) {
-            styles[key] = resolved;
-          }
+      if (parseAssetReference(value) || value.startsWith("blob:")) {
+        const stylePath = `slides[${slideIndex}].elements[${elementIndex}].styles.${key}`;
+        const styleResult = await resolveImageContent(value, resolveAsset, stylePath);
+        if (!styleResult.success) {
+          return { success: false, error: styleResult.error };
         }
+        styles[key] = styleResult.value;
       }
+    }
 
-      return { ...element, content, styles };
-    }),
-  );
+    resolved.push({ ...element, content: contentResult.value, styles });
+  }
+
+  return { success: true, elements: resolved };
 }
 
 export async function exportPresentationJson(
   presentation: Presentation,
   resolveAsset: AssetResolver,
 ): Promise<{ success: true; json: string; filename: string } | { success: false; error: string }> {
-  const resolvedSlides = await Promise.all(
-    presentation.slides.map(async (slide) => ({
+  const resolvedSlides = [];
+
+  for (const [slideIndex, slide] of presentation.slides.entries()) {
+    const elementsResult = await resolveSlideElements(slide.elements, slideIndex, resolveAsset);
+    if (!elementsResult.success) {
+      return { success: false, error: elementsResult.error };
+    }
+
+    resolvedSlides.push({
       ...slide,
-      elements: await resolveSlideElements(slide.elements, resolveAsset),
-    })),
-  );
+      elements: elementsResult.elements,
+    });
+  }
 
   const resolved: Presentation = {
     ...presentation,
@@ -90,29 +89,13 @@ export async function exportPresentationJson(
   }
 
   const json = JSON.stringify(validated.data, null, 2);
-  const filename = sanitizeFilename(validated.data.title);
+  const filename = sanitizeJsonFilename(validated.data.title);
 
   return { success: true, json, filename };
 }
 
-function stripUnsafeFilenameChars(value: string): string {
-  return [...value]
-    .filter((char) => {
-      const code = char.charCodeAt(0);
-      return code >= 32 && !'<>:"/\\|?*'.includes(char);
-    })
-    .join("");
-}
-
 export function sanitizeFilename(title: string): string {
-  const sanitized = stripUnsafeFilenameChars(title.trim())
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-
-  const base = sanitized.length > 0 ? sanitized : "presentation";
-  return `${base}.presentation.json`;
+  return sanitizeJsonFilename(title);
 }
 
 export function createDataUrlResolver(

@@ -12,7 +12,7 @@ const SAMPLE_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 describe("exportPresentationJson", () => {
-  it("resolves asset references to data URLs", async () => {
+  it("resolves asset references to validated data URLs", async () => {
     const presentation = createPresentation("Export Test");
     const slide = presentation.slides[0]!;
     const image = createImageElement(slide.elements, {
@@ -30,6 +30,47 @@ describe("exportPresentationJson", () => {
       const parsed = JSON.parse(result.json);
       expect(parsed.slides[0].elements[0].content).toBe(SAMPLE_DATA_URL);
       expect(result.filename).toBe("Export-Test.presentation.json");
+    }
+  });
+
+  it("rejects unresolved asset references", async () => {
+    const presentation = createPresentation("Unresolved");
+    const slide = presentation.slides[0]!;
+    slide.elements.push(
+      createImageElement(slide.elements, { content: toAssetReference("missing") }),
+    );
+
+    const result = await exportPresentationJson(presentation, createDataUrlResolver({}));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("не удалось разрешить");
+    }
+  });
+
+  it("rejects blob and http image references", async () => {
+    const presentation = createPresentation("External");
+    const slide = presentation.slides[0]!;
+    slide.elements.push(createImageElement(slide.elements, { content: "blob:abc" }));
+
+    const blobResult = await exportPresentationJson(presentation, createDataUrlResolver({}));
+    expect(blobResult.success).toBe(false);
+
+    slide.elements[0] = createImageElement(slide.elements, { content: "https://example.com/a.png" });
+    const httpResult = await exportPresentationJson(presentation, createDataUrlResolver({}));
+    expect(httpResult.success).toBe(false);
+  });
+
+  it("rejects malformed data URLs", async () => {
+    const presentation = createPresentation("Bad Data");
+    const slide = presentation.slides[0]!;
+    slide.elements.push(
+      createImageElement(slide.elements, { content: "data:text/html;base64,abc" }),
+    );
+
+    const result = await exportPresentationJson(presentation, createDataUrlResolver({}));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("data URL");
     }
   });
 
@@ -62,8 +103,10 @@ describe("exportPresentationJson", () => {
 });
 
 describe("sanitizeFilename", () => {
-  it("removes unsafe characters", () => {
+  it("removes unsafe characters and handles Windows reserved names", () => {
     expect(sanitizeFilename('My<>Presentation:"')).toBe("MyPresentation.presentation.json");
+    expect(sanitizeFilename("CON")).toBe("CON_.presentation.json");
     expect(sanitizeFilename("   ")).toBe("presentation.presentation.json");
+    expect(sanitizeFilename("name...")).toBe("name.presentation.json");
   });
 });
