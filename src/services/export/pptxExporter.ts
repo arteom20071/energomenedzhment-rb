@@ -16,9 +16,8 @@ import {
   cssPxToPoints,
   firstFontFamily,
   injectSlideTransitionXml,
+  LOGICAL_PIXELS_PER_INCH,
   mapSlideTransitionToPptx,
-  PPTX_SLIDE_HEIGHT_IN,
-  PPTX_SLIDE_WIDTH_IN,
   pptxTransitionToXml,
   pxToInch,
   toPptxHexColor,
@@ -130,27 +129,38 @@ function addText(slide: PptxSlide, element: SlideElement): void {
 
 function addShape(deck: PptxGenJS, slide: PptxSlide, element: SlideElement): void {
   const styles = element.styles;
-  const fill = toPptxHexColor(typeof styles.fill === "string" ? styles.fill : "#6366f1", "6366F1");
+  const fillRaw = typeof styles.fill === "string" ? styles.fill.trim() : "";
+  const isTransparent = fillRaw === "transparent" || fillRaw === "none";
+  const fill = isTransparent ? undefined : toPptxHexColor(fillRaw || "#6366f1", "6366F1");
   const lineColor =
     typeof styles.borderColor === "string"
-      ? toPptxHexColor(styles.borderColor, fill)
+      ? toPptxHexColor(styles.borderColor, fill ?? "E2E8F0")
       : undefined;
   const lineWidth = typeof styles.borderWidth === "number" ? styles.borderWidth / 2 : 0;
   const shapeKind = styles.shapeKind;
-  const shape =
-    shapeKind === "ellipse" || shapeKind === "circle"
-      ? deck.ShapeType.ellipse
-      : deck.ShapeType.roundRect;
+  const isEllipse = shapeKind === "ellipse" || shapeKind === "circle";
+  const radiusPx = typeof styles.borderRadius === "number" ? styles.borderRadius : 0;
+  const shape = isEllipse
+    ? deck.ShapeType.ellipse
+    : radiusPx > 0
+      ? deck.ShapeType.roundRect
+      : deck.ShapeType.rect;
 
-  slide.addShape(shape, {
+  const options: Record<string, unknown> = {
     ...box(element),
-    fill: { color: fill },
-    rectRadius: typeof styles.borderRadius === "number" ? styles.borderRadius / 144 : 0.05,
+    fill: fill ? { color: fill } : undefined,
     line:
       lineWidth > 0 && lineColor
         ? { color: lineColor, width: lineWidth }
-        : { color: fill, width: 0 },
-  });
+        : undefined,
+  };
+
+  if (!isEllipse && radiusPx > 0) {
+    const maxRadius = Math.min(pxToInch(Math.max(element.width, 1)), pxToInch(Math.max(element.height, 1))) / 2;
+    options.rectRadius = Math.min(radiusPx / LOGICAL_PIXELS_PER_INCH, maxRadius);
+  }
+
+  slide.addShape(shape, options as Parameters<PptxSlide["addShape"]>[1]);
 }
 
 function addImage(slide: PptxSlide, element: SlideElement): void {
@@ -211,6 +221,17 @@ export async function applyPptxTransitions(
     }),
   );
 
+  const typesFile = zip.file("[Content_Types].xml");
+  if (typesFile) {
+    const typesXml = await typesFile.async("string");
+    zip.file(
+      "[Content_Types].xml",
+      typesXml.replace(/<Override PartName="\/([^"]+)"[^>]*\/>/g, (override, part: string) =>
+        zip.file(part) ? override : "",
+      ),
+    );
+  }
+
   return zip.generateAsync({ type: "blob" });
 }
 
@@ -261,12 +282,7 @@ export async function exportPresentationPptx(
   }
 
   const deck = options.createDeck?.() ?? new PptxGenJS();
-  deck.defineLayout({
-    name: "LAYOUT_EDITOR_WIDE",
-    width: PPTX_SLIDE_WIDTH_IN,
-    height: PPTX_SLIDE_HEIGHT_IN,
-  });
-  deck.layout = "LAYOUT_EDITOR_WIDE";
+  deck.layout = "LAYOUT_WIDE";
   deck.title = resolved.presentation.title;
   deck.author = "Local Presentation Editor";
 
