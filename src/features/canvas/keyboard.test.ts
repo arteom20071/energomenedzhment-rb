@@ -81,6 +81,22 @@ describe("keyboard helpers", () => {
     expect(duplicateSelected).toHaveBeenCalledOnce();
   });
 
+  it("starts inline text editing from F2 or Enter", () => {
+    const beginTextEdit = vi.fn();
+    const handler = createCanvasKeyboardHandler({
+      selectedIds: ["a"],
+      isEditing: false,
+      commitNudge: vi.fn(),
+      deleteSelected: vi.fn(),
+      duplicateSelected: vi.fn(),
+      beginTextEdit,
+    });
+
+    handler(new KeyboardEvent("keydown", { key: "F2", bubbles: true }));
+    handler(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(beginTextEdit).toHaveBeenCalledTimes(2);
+  });
+
   it("ignores shortcuts while editing or focused in inputs", () => {
     const deleteSelected = vi.fn();
     const handler = createCanvasKeyboardHandler({

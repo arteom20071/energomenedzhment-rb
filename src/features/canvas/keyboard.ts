@@ -30,6 +30,7 @@ export interface CanvasKeyboardActions {
   commitResize?: (dw: number, dh: number) => void;
   deleteSelected: () => void;
   duplicateSelected: () => void;
+  beginTextEdit?: () => void;
 }
 
 export function createCanvasKeyboardHandler(actions: CanvasKeyboardActions) {
@@ -89,6 +90,13 @@ export function createCanvasKeyboardHandler(actions: CanvasKeyboardActions) {
         if (actions.commitRotate) {
           event.preventDefault();
           actions.commitRotate(rotateStep);
+        }
+        break;
+      case "F2":
+      case "Enter":
+        if (actions.beginTextEdit) {
+          event.preventDefault();
+          actions.beginTextEdit();
         }
         break;
       case "Delete":

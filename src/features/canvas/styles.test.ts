@@ -80,4 +80,14 @@ describe("sanitizeElementStyles", () => {
     expect(css.transform).toBe("scale(1.5)");
     expect(css.transformOrigin).toBe("30% 70%");
   });
+
+  it("maps ellipse shapes to a circular border radius", () => {
+    const css = toCssProperties("shape", {
+      fill: "#0284c7",
+      shapeKind: "ellipse",
+      borderRadius: 8,
+    });
+    expect(css.backgroundColor).toBe("#0284c7");
+    expect(css.borderRadius).toBe("50%");
+  });
 });

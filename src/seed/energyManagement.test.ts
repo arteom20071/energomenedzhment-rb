@@ -1,7 +1,4 @@
 /// <reference types="node" />
-import { existsSync } from "fs";
-import { dirname, join, resolve } from "path";
-import { fileURLToPath } from "url";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -16,8 +13,6 @@ import {
   energyManagementPresentation,
   resolveSeedAssetUrl,
 } from "./energyManagement";
-
-const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const EXPECTED_FIXED_IDS = [
   "em-pres",
@@ -111,6 +106,18 @@ const EXPECTED_SLIDES: Array<{
   },
 ];
 
+const DIAGRAM_TEXT_ANCHORS = [
+  "КОНТУР УПРАВЛЕНИЯ ТЭР",
+  "ИЕРАРХИЯ ТНПА",
+  "ПОРОГИ ПОТРЕБЛЕНИЯ ТЭР",
+  "ЭТАП 01",
+  "IR / тепловизор",
+  "PDCA",
+  "PBP · ГРАДАЦИЯ МЕР",
+  "Главный энергетик",
+  "АСКУЭ / АСТУЭ",
+] as const;
+
 const SUPPORTED_TRANSITIONS = new Set(["fade", "slide", "zoom", "none"]);
 const FORBIDDEN_STYLE_KEYS = ["textTransform", "fontStyle"] as const;
 
@@ -119,11 +126,6 @@ function collectTextContent(slide: Slide): string {
     .filter((element) => element.type === "text")
     .map((element) => element.content ?? "")
     .join("\n");
-}
-
-function resolveImagePath(content: string): string {
-  const normalized = content.startsWith("/") ? content.slice(1) : content;
-  return join(PROJECT_ROOT, "public", normalized);
 }
 
 function isWithinCanvas(element: SlideElement, margin = 8): boolean {
@@ -216,34 +218,17 @@ describe("energyManagementPresentation seed", () => {
     }
   });
 
-  it("stores base-relative image paths and resolves files on disk", () => {
+  it("keeps diagram copy as editable text instead of baked images", () => {
     energyManagementPresentation.slides.forEach((slide, index) => {
       const images = slide.elements.filter((element) => element.type === "image");
       const texts = slide.elements.filter((element) => element.type === "text");
+      const shapes = slide.elements.filter((element) => element.type === "shape");
 
-      expect(images).toHaveLength(1);
+      expect(images).toHaveLength(0);
       expect(texts.length).toBeGreaterThanOrEqual(2);
-
-      const image = images[0]!;
-      expect(image.content).toMatch(/^assets\/images\//);
-      expect(image.content).not.toMatch(/^\//);
-
-      const filePath = resolveImagePath(image.content!);
-      expect(existsSync(filePath)).toBe(true);
-      expect(filePath).toMatch(new RegExp(`slide-${index + 1}-`));
+      expect(shapes.length).toBeGreaterThanOrEqual(1);
+      expect(collectTextContent(slide)).toContain(DIAGRAM_TEXT_ANCHORS[index]!);
     });
-  });
-
-  it("assigns nonempty descriptive alt text to every image", () => {
-    const images = energyManagementPresentation.slides.flatMap((slide) =>
-      slide.elements.filter((element) => element.type === "image"),
-    );
-    expect(images).toHaveLength(9);
-    for (const image of images) {
-      const alt = image.styles.alt;
-      expect(typeof alt).toBe("string");
-      expect((alt as string).trim().length).toBeGreaterThan(10);
-    }
   });
 
   it("does not use unsupported text style keys", () => {

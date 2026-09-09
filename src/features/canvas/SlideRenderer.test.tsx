@@ -47,7 +47,7 @@ function buildSlide(): Slide {
 describe("SlideRenderer", () => {
   it("renders slide at logical 1920x1080 with clipped overflow", () => {
     const { container } = render(
-      <SlideRenderer slide={buildSlide()} interactive={false} scale={0.5} />,
+      <SlideRenderer slide={buildSlide()} interactive scale={0.5} />,
     );
 
     const canvas = container.querySelector('[data-testid="slide-canvas"]');
@@ -128,5 +128,33 @@ describe("SlideRenderer", () => {
     const text = screen.getByTestId("element-text-1");
     expect(text.getAttribute("onclick")).toBeNull();
     expect(text).toHaveStyle({ fontSize: "24px", color: "rgb(17, 24, 39)" });
+  });
+
+  it("wraps text and eases layout except while a transform preview is active", () => {
+    const slide = buildSlide();
+    const { rerender } = render(
+      <SlideRenderer
+        slide={slide}
+        interactive
+        previewElements={new Map([["text-1", { width: 220, height: 60 }]])}
+      />,
+    );
+
+    const transforming = screen.getByTestId("element-text-1");
+    expect(transforming).toHaveAttribute("data-transforming", "true");
+    expect(transforming).toHaveStyle({
+      whiteSpace: "pre-wrap",
+      overflow: "hidden",
+      transition: "none",
+      width: "220px",
+    });
+
+    rerender(<SlideRenderer slide={slide} interactive={false} />);
+    const idle = screen.getByTestId("element-text-1");
+    expect(idle).not.toHaveAttribute("data-transforming");
+    expect(idle).toHaveStyle({
+      transition:
+        "left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease, transform 180ms ease",
+    });
   });
 });
