@@ -117,6 +117,66 @@ describe("bootstrapEditor", () => {
     ).toBe(true);
   });
 
+  it("replaces stored em-pres drafts that still contain cramped seed diagrams", async () => {
+    const runtime = createEditorRuntime(new FakeIdbFacade());
+    const stale = cloneSeedPresentation();
+    stale.slides[1]!.elements.push({
+      id: "em-s01-dia-legacy",
+      type: "text",
+      x: 80,
+      y: 900,
+      width: 400,
+      height: 40,
+      rotation: 0,
+      zIndex: 80,
+      content: "старая схема",
+      styles: { fontSize: 32, color: "#0f172a" },
+    });
+    await runtime.documents.save({
+      id: stale.id,
+      presentation: stale,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    setActiveProjectId(stale.id);
+
+    const result = await bootstrapEditor(runtime, "/repo/");
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") {
+      return;
+    }
+    expect(
+      result.presentation.slides.some((slide) =>
+        slide.elements.some((element) => element.id === "em-s01-dia-legacy"),
+      ),
+    ).toBe(false);
+  });
+
+  it("replaces stored em-pres drafts whose body type is still too small for a hall", async () => {
+    const runtime = createEditorRuntime(new FakeIdbFacade());
+    const stale = cloneSeedPresentation();
+    const title = stale.slides[0]!.elements.find((element) => element.id === "em-s00-title");
+    expect(title).toBeDefined();
+    title!.styles.fontSize = 22;
+    await runtime.documents.save({
+      id: stale.id,
+      presentation: stale,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    setActiveProjectId(stale.id);
+
+    const result = await bootstrapEditor(runtime, "/repo/");
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") {
+      return;
+    }
+    const refreshed = result.presentation.slides[0]!.elements.find(
+      (element) => element.id === "em-s00-title",
+    );
+    expect(refreshed?.styles.fontSize).toBeGreaterThanOrEqual(28);
+  });
+
   it("replaces stored em-pres drafts that still lack the title slide", async () => {
     const runtime = createEditorRuntime(new FakeIdbFacade());
     const stale = cloneSeedPresentation();
