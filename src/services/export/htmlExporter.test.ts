@@ -52,6 +52,21 @@ describe("generateStandaloneHtmlFromResolved", () => {
     expect(rendered).toContain("color:#111827");
   });
 
+  it("writes element opacity and image rounding onto the outer wrapper", () => {
+    const presentation = createPresentation("Opacity");
+    const slide = presentation.slides[0]!;
+    slide.elements.push(
+      createImageElement(slide.elements, {
+        content: SAMPLE_DATA_URL,
+        styles: { opacity: 0.4, borderRadius: 16, alt: "campus" },
+      }),
+    );
+
+    const html = generateStandaloneHtmlFromResolved(presentation);
+    expect(html).toContain("opacity:0.4");
+    expect(html).toContain("border-radius:16px");
+  });
+
   it("preserves rotation on outer wrapper while inner handles animation", () => {
     const presentation = createPresentation("Rotation");
     const slide = presentation.slides[0]!;

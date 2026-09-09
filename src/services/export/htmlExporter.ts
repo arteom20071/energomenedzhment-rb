@@ -39,14 +39,24 @@ function renderElementShell(
   element: SlideElement,
   innerHtml: string,
 ): string {
-  const style = buildStyleAttribute({
+  const declarations: Record<string, string> = {
     left: serializePosition(element.x),
     top: serializePosition(element.y),
     width: serializePosition(element.width),
     height: serializePosition(element.height),
     transform: `rotate(${serializeRotation(element.rotation)})`,
     "z-index": serializeZIndex(element.zIndex),
-  });
+  };
+  const opacity = element.styles.opacity;
+  if (typeof opacity === "number" && Number.isFinite(opacity)) {
+    declarations.opacity = String(Math.min(1, Math.max(0, opacity)));
+  }
+  const radius = element.styles.borderRadius;
+  if (element.type === "image" && typeof radius === "number" && Number.isFinite(radius) && radius > 0) {
+    declarations["border-radius"] = serializePxNumber(radius, 0);
+    declarations.overflow = "hidden";
+  }
+  const style = buildStyleAttribute(declarations);
   return `<div class="element-outer ${element.type}" data-animation="${element.animation ?? ""}" style="${style}"><div class="element-inner">${innerHtml}</div></div>`;
 }
 

@@ -23,14 +23,17 @@ describe("bootstrapEditor", () => {
       return;
     }
     expect(result.presentation.title).toBe(cloneSeedPresentation().title);
-    expect(result.presentation.slides).toHaveLength(9);
+    expect(result.presentation.slides).toHaveLength(11);
     expect(result.presentation.slides[0]?.elements.some((element) =>
-      element.type === "text" && element.content?.includes("КОНТУР УПРАВЛЕНИЯ ТЭР"),
+      element.type === "text" && element.content?.includes("Белорусский государственный медицинский университет"),
+    )).toBe(true);
+    expect(result.presentation.slides.some((slide) =>
+      slide.elements.some((element) =>
+        element.type === "text" && element.content?.includes("Зачем предприятию энергоменеджмент"),
+      ),
     )).toBe(true);
     expect(
-      result.presentation.slides.every((slide) =>
-        !slide.elements.some((element) => element.type === "image"),
-      ),
+      result.presentation.slides[0]?.elements.some((element) => element.type === "image"),
     ).toBe(true);
   });
 
@@ -108,9 +111,30 @@ describe("bootstrapEditor", () => {
       result.presentation.slides.some((slide) =>
         slide.elements.some(
           (element) =>
-            element.type === "text" && element.content?.includes("КОНТУР УПРАВЛЕНИЯ ТЭР"),
+            element.type === "text" && element.content?.includes("Зачем предприятию энергоменеджмент"),
         ),
       ),
     ).toBe(true);
+  });
+
+  it("replaces stored em-pres drafts that still lack the title slide", async () => {
+    const runtime = createEditorRuntime(new FakeIdbFacade());
+    const stale = cloneSeedPresentation();
+    stale.slides = stale.slides.filter((slide) => slide.id !== "em-slide-00");
+    await runtime.documents.save({
+      id: stale.id,
+      presentation: stale,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    setActiveProjectId(stale.id);
+
+    const result = await bootstrapEditor(runtime, "/repo/");
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") {
+      return;
+    }
+    expect(result.presentation.slides[0]?.id).toBe("em-slide-00");
+    expect(result.presentation.slides).toHaveLength(11);
   });
 });

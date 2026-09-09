@@ -127,6 +127,21 @@ function addText(slide: PptxSlide, element: SlideElement): void {
   });
 }
 
+function styleOpacity(styles: Record<string, unknown>): number | undefined {
+  const value = styles.opacity;
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+  return Math.min(1, Math.max(0, value));
+}
+
+function pptxTransparency(opacity: number | undefined): number | undefined {
+  if (opacity === undefined || opacity >= 1) {
+    return undefined;
+  }
+  return Math.round((1 - opacity) * 100);
+}
+
 function addShape(deck: PptxGenJS, slide: PptxSlide, element: SlideElement): void {
   const styles = element.styles;
   const fillRaw = typeof styles.fill === "string" ? styles.fill.trim() : "";
@@ -138,6 +153,7 @@ function addShape(deck: PptxGenJS, slide: PptxSlide, element: SlideElement): voi
       : undefined;
   const lineWidth = typeof styles.borderWidth === "number" ? styles.borderWidth / 2 : 0;
   const shapeKind = styles.shapeKind;
+  const transparency = pptxTransparency(styleOpacity(styles));
   const isEllipse = shapeKind === "ellipse" || shapeKind === "circle";
   const radiusPx = typeof styles.borderRadius === "number" ? styles.borderRadius : 0;
   const shape = isEllipse
@@ -148,7 +164,11 @@ function addShape(deck: PptxGenJS, slide: PptxSlide, element: SlideElement): voi
 
   const options: Record<string, unknown> = {
     ...box(element),
-    fill: fill ? { color: fill } : undefined,
+    fill: fill
+      ? transparency === undefined
+        ? { color: fill }
+        : { color: fill, transparency }
+      : undefined,
     line:
       lineWidth > 0 && lineColor
         ? { color: lineColor, width: lineWidth }
@@ -169,9 +189,11 @@ function addImage(slide: PptxSlide, element: SlideElement): void {
     return;
   }
 
+  const transparency = pptxTransparency(styleOpacity(element.styles));
   slide.addImage({
     ...box(element),
     data: src,
+    ...(transparency === undefined ? {} : { transparency }),
   });
 }
 
