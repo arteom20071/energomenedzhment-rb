@@ -10,6 +10,12 @@ const EMERALD_LIGHT = "#ecfdf5";
 const BORDER = "#e2e8f0";
 const TITLE_NAVY = "#0b1d3a";
 const SLIDE_TOTAL = 11;
+const CARD_TOP = 188;
+const CARD_H = 270;
+const CARD_ROW2 = 478;
+const COL3_H = 552;
+const PHOTO_Y = 760;
+const PHOTO_H = 230;
 
 type Anim = SlideElement["animation"];
 
@@ -182,6 +188,15 @@ function pointCard(
   ];
 }
 
+function photoStrip(
+  prefix: string,
+  src: string,
+  alt: string,
+  z: number,
+): SlideElement {
+  return photo(`${prefix}-photo`, src, 80, PHOTO_Y, 1760, PHOTO_H, z, alt);
+}
+
 function titleSlide(): Slide {
   const p = "em-s00";
   return {
@@ -291,9 +306,9 @@ function slide1(): Slide {
       ...pointCard(
         `${p}-g1`,
         80,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         3,
         "1. Тратить меньше",
         "Снизить удельный расход ТЭР на единицу продукции и убрать лишние потери.",
@@ -302,9 +317,9 @@ function slide1(): Slide {
       ...pointCard(
         `${p}-g2`,
         680,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         6,
         "2. Пройти аудит",
         "Получить паспорт объекта, список мер и понять, куда уходит топливо и электричество.",
@@ -312,15 +327,16 @@ function slide1(): Slide {
       ...pointCard(
         `${p}-g3`,
         1280,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         9,
         "3. Собрать службу",
         "Чтобы нормы, учёт и отчёт 4-энергосбережение не висели на одном человеке.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Цели доклада", 2, 12),
+      photoStrip(p, "assets/images/photo-overview.jpg", "Энергетическое хозяйство предприятия", 12),
+      ...footerBlock(p, "Цели доклада", 2, 13),
     ],
   };
 }
@@ -336,9 +352,9 @@ function slide2(): Slide {
       ...pointCard(
         `${p}-law1`,
         80,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         3,
         "Закон № 239-З",
         "Закон «Об энергосбережении» от 08.01.2015. Правки: № 111-З (2021) и № 128-З (2025). Аудит, нормы ТЭР, планы.",
@@ -346,9 +362,9 @@ function slide2(): Slide {
       ...pointCard(
         `${p}-law2`,
         980,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         6,
         "Департамент",
         "Департамент по энергоэффективности Госстандарта. Графики аудита, нормы, energoeffect.gov.by.",
@@ -357,9 +373,9 @@ function slide2(): Slide {
       ...pointCard(
         `${p}-law3`,
         80,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         9,
         "ГОСТ ISO 50001 и СТБ 1774",
         "СЭнМ с 01.06.2021. Паспорт: СТБ 1774. Аудит: пост. Совмина № 216, правка № 448 от 03.09.2026.",
@@ -367,15 +383,16 @@ function slide2(): Slide {
       ...pointCard(
         `${p}-law4`,
         980,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         12,
         "Форма 4-энергосбережение",
         "Ежегодный отчёт Госстандарту: какие меры сделали и сколько ТЭР сэкономили.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Документы", 3, 15),
+      photoStrip(p, "assets/images/photo-legal.jpg", "Документы по энергосбережению", 15),
+      ...footerBlock(p, "Документы", 3, 16),
     ],
   };
 }
@@ -391,9 +408,9 @@ function slideDuties(): Slide {
       ...pointCard(
         `${p}-d1`,
         80,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         3,
         "Считать нормы ТЭР",
         "Разработать и защитить удельные нормы расхода. С 300 т у.т. в год или если есть котёл от 0,5 Гкал/ч.",
@@ -402,9 +419,9 @@ function slideDuties(): Slide {
       ...pointCard(
         `${p}-d2`,
         680,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         6,
         "Держать план",
         "Госорганизации: от 300 т у.т. Остальные юрлица: от 1 500 т у.т. (ст. 19 Закона № 239-З).",
@@ -412,15 +429,16 @@ function slideDuties(): Slide {
       ...pointCard(
         `${p}-d3`,
         1280,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         9,
         "Сдавать отчёт",
         "Форма 4-энергосбережение: что сделали и какая экономия вышла.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Обязанности", 4, 12),
+      photoStrip(p, "assets/images/photo-legal.jpg", "Документы по энергосбережению", 12),
+      ...footerBlock(p, "Обязанности", 4, 13),
     ],
   };
 }
@@ -428,18 +446,18 @@ function slideDuties(): Slide {
 function slide3(): Slide {
   const p = "em-s03";
   const kpi = (suffix: string, x: number, y: number, lbl: string, val: string, hint: string, z: number) => [
-    card(`${p}-kpi-${suffix}`, x, y, 860, 380, z, "#ffffff"),
-    txt(`${p}-kpi-${suffix}-l`, x + 36, y + 28, 788, 48, lbl, z + 1, {
+    card(`${p}-kpi-${suffix}`, x, y, 860, CARD_H, z, "#ffffff"),
+    txt(`${p}-kpi-${suffix}-l`, x + 36, y + 16, 788, 40, lbl, z + 1, {
       fontSize: 30,
       color: MUTED,
       fontWeight: 600,
     }, "fade-up"),
-    txt(`${p}-kpi-${suffix}-v`, x + 36, y + 88, 788, 120, val, z + 2, {
+    txt(`${p}-kpi-${suffix}-v`, x + 36, y + 56, 788, 90, val, z + 2, {
       fontSize: 72,
       fontWeight: 800,
       color: ACCENT,
     }, "scale"),
-    txt(`${p}-kpi-${suffix}-h`, x + 36, y + 220, 788, 130, hint, z + 3, {
+    txt(`${p}-kpi-${suffix}-h`, x + 36, y + 156, 788, 96, hint, z + 3, {
       fontSize: 34,
       lineHeight: 1.25,
     }, "fade-up"),
@@ -450,11 +468,12 @@ function slide3(): Slide {
     transition: "zoom",
     elements: [
       ...headerBlock(p, "Обязательный энергоаудит", "Когда аудит уже не добровольный", 0),
-      ...kpi("a", 80, 188, "Порог", "1 500", "т у.т. в год и выше: юрлицо ставят в график обследования", 3),
-      ...kpi("b", 980, 188, "Как часто", "5 лет", "Не реже. Графики областей и Минска смотрит Департамент", 7),
-      ...kpi("c", 80, 588, "У аудитора", "от 3", "аттестованных экспертов и поверенные приборы", 11),
-      ...kpi("d", 980, 588, "Если есть ISO", "3 г.", "Сертификат ГОСТ ISO 50001: короткий отчёт за 3 года", 15),
-      ...footerBlock(p, "Пороги", 5, 19),
+      ...kpi("a", 80, CARD_TOP, "Порог", "1 500", "т у.т. в год и выше: юрлицо ставят в график обследования", 3),
+      ...kpi("b", 980, CARD_TOP, "Как часто", "5 лет", "Не реже. Графики областей и Минска смотрит Департамент", 7),
+      ...kpi("c", 80, CARD_ROW2, "У аудитора", "от 3", "аттестованных экспертов и поверенные приборы", 11),
+      ...kpi("d", 980, CARD_ROW2, "Если есть ISO", "3 г.", "Сертификат ГОСТ ISO 50001: короткий отчёт за 3 года", 15),
+      photoStrip(p, "assets/images/photo-threshold.jpg", "Учёт потребления ТЭР", 19),
+      ...footerBlock(p, "Пороги", 5, 20),
     ],
   };
 }
@@ -470,9 +489,9 @@ function slide4(): Slide {
       ...pointCard(
         `${p}-st1`,
         80,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         3,
         "1. Документы",
         "Расход ТЭР за 36 месяцев, договоры, тарифы, данные АСКУЭ.",
@@ -480,9 +499,9 @@ function slide4(): Slide {
       ...pointCard(
         `${p}-st2`,
         980,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         6,
         "2. Замеры",
         "Нагрузки, тепло, потери, утечки, холостой ход.",
@@ -491,9 +510,9 @@ function slide4(): Slide {
       ...pointCard(
         `${p}-st3`,
         80,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         9,
         "3. Баланс",
         "Факт против нормы. Где коммерческие потери и неучтенный расход.",
@@ -501,15 +520,16 @@ function slide4(): Slide {
       ...pointCard(
         `${p}-st4`,
         980,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         12,
         "4. Меры",
         "Стоимость, окупаемость, паспорт. Нормы для тех, кто от 1 500 т у.т.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Этапы аудита", 6, 15),
+      photoStrip(p, "assets/images/photo-audit.jpg", "Энергоаудитор на объекте", 15),
+      ...footerBlock(p, "Этапы аудита", 6, 16),
     ],
   };
 }
@@ -525,9 +545,9 @@ function slide5(): Slide {
       ...pointCard(
         `${p}-ir`,
         80,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         3,
         "Тепловизор",
         "Стены, трубы, печи. Ищут мостики холода и дырявую изоляцию.",
@@ -535,9 +555,9 @@ function slide5(): Slide {
       ...pointCard(
         `${p}-us`,
         980,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         6,
         "УЗ-расходомер",
         "Clamp-on на трубе. Сверяют коммерческий учёт и факт.",
@@ -546,9 +566,9 @@ function slide5(): Slide {
       ...pointCard(
         `${p}-ga`,
         80,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         9,
         "Газоанализ",
         "O₂, CO, температура дыма. Настраивают котёл, чтобы не жечь лишнее.",
@@ -556,15 +576,16 @@ function slide5(): Slide {
       ...pointCard(
         `${p}-pq`,
         980,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         12,
         "Электрика",
         "cos φ, THD, перекос фаз. База для ЧРП и компенсации. У фирмы: от 3 экспертов и приборы с действующей поверкой.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Замеры", 7, 15),
+      photoStrip(p, "assets/images/photo-instruments.jpg", "Приборы энергетического обследования", 15),
+      ...footerBlock(p, "Замеры", 7, 16),
     ],
   };
 }
@@ -580,9 +601,9 @@ function slide6(): Slide {
       ...pointCard(
         `${p}-plan`,
         80,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         3,
         "Plan. Политика и цели",
         "Энергополитика, значимое потребление, базовые линии EnB и показатели EnPI.",
@@ -591,9 +612,9 @@ function slide6(): Slide {
       ...pointCard(
         `${p}-do`,
         980,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         6,
         "Do. Как работают каждый день",
         "Регламенты, обучение, закупки с учётом расхода энергии.",
@@ -601,9 +622,9 @@ function slide6(): Slide {
       ...pointCard(
         `${p}-check`,
         80,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         9,
         "Check. Сверка раз в год",
         "Сравнивают EnPI с базой. Внутренний аудит системы не реже раза в год.",
@@ -612,15 +633,16 @@ function slide6(): Slide {
       ...pointCard(
         `${p}-act`,
         980,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         12,
         "Act. Разбор у руководства",
         "Правят цели. Сертификат даёт короткий обязательный аудит: анализ за 3 года.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "СЭнМ", 8, 15),
+      photoStrip(p, "assets/images/photo-pdca.jpg", "Цикл СЭнМ", 15),
+      ...footerBlock(p, "СЭнМ", 8, 16),
     ],
   };
 }
@@ -636,9 +658,9 @@ function slide7(): Slide {
       ...pointCard(
         `${p}-n1`,
         80,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         3,
         "Текущие и прогрессивные",
         "Текущие нормы: до 1 года. Прогрессивные: ряд на 1-5 лет, если потребление от 1 500 т у.т.",
@@ -647,9 +669,9 @@ function slide7(): Slide {
       ...pointCard(
         `${p}-n2`,
         980,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         6,
         "Кто утверждает с 2026",
         "От 50 тыс. т у.т. и мелкие с котлом от 0,5 Гкал/ч: Департамент. От 300 до 50 000: области и Минск. Подача через «Е-Паслуга».",
@@ -657,9 +679,9 @@ function slide7(): Slide {
       ...pointCard(
         `${p}-m1`,
         80,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         9,
         "До 3 лет",
         "До года: утечки, холостой ход, наладка котла. 1-3 года: ЧРП, автоматика ИТП, свет, изоляция.",
@@ -668,15 +690,16 @@ function slide7(): Slide {
       ...pointCard(
         `${p}-m2`,
         980,
-        588,
+        CARD_ROW2,
         860,
-        380,
+        CARD_H,
         12,
         "3-5 лет",
         "Когенерация, тепло уходящих газов, крупные ВЭР. Берут, если окупаемость ещё приемлема.",
         ACCENT_LIGHT,
       ),
-      ...footerBlock(p, "Нормы и меры", 9, 15),
+      photoStrip(p, "assets/images/photo-measures.jpg", "Меры по энергосбережению", 15),
+      ...footerBlock(p, "Нормы и меры", 9, 16),
     ],
   };
 }
@@ -692,9 +715,9 @@ function slide8(): Slide {
       ...pointCard(
         `${p}-chief`,
         80,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         3,
         "Главный энергетик",
         "Лимиты, нормы, СЭнМ, связь с Департаментом, форма 4-энергосбережение.",
@@ -703,9 +726,9 @@ function slide8(): Slide {
       ...pointCard(
         `${p}-comm`,
         980,
-        188,
+        CARD_TOP,
         860,
-        380,
+        CARD_H,
         6,
         "Энергетическая комиссия",
         "Технолог (нормы на изделие), механик (оборудование), финансист (деньги и окупаемость).",
@@ -713,15 +736,16 @@ function slide8(): Slide {
       ...pointCard(
         `${p}-auto`,
         80,
-        588,
+        CARD_ROW2,
         1760,
-        380,
+        CARD_H,
         9,
         "АСКУЭ и АСТУЭ",
         "АСКУЭ считает электричество. АСТУЭ считает тепло, пар, газ и сжатый воздух. Без приборов нормы и отчёт не собрать.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Служба", 10, 12),
+      photoStrip(p, "assets/images/photo-org.jpg", "Команда энергослужбы", 12),
+      ...footerBlock(p, "Служба", 10, 13),
     ],
   };
 }
@@ -737,9 +761,9 @@ function slide9(): Slide {
       ...pointCard(
         `${p}-dq`,
         80,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         3,
         "Δq",
         "Удельный расход ТЭР на изделие падает. Нормы держатся, а не живут только на бумаге.",
@@ -748,9 +772,9 @@ function slide9(): Slide {
       ...pointCard(
         `${p}-roi`,
         680,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         6,
         "Деньги",
         "Доля энергии в себестоимости меньше. Меры окупаются в срок, который утвердили.",
@@ -758,15 +782,16 @@ function slide9(): Slide {
       ...pointCard(
         `${p}-iso`,
         1280,
-        188,
+        CARD_TOP,
         560,
-        780,
+        COL3_H,
         9,
         "ISO",
         "Сертификат ГОСТ ISO 50001-2021. Тогда обязательный аудит короткий, а паспорт уже собран.",
         EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Итог года", 11, 12),
+      photoStrip(p, "assets/images/photo-roadmap.jpg", "Предприятие после года работы", 12),
+      ...footerBlock(p, "Итог года", 11, 13),
     ],
   };
 }
