@@ -89,16 +89,7 @@ const EXPECTED_SLIDES: Array<{
   },
 ];
 
-const DIAGRAM_TEXT_ANCHORS = [
-  "ИЕРАРХИЯ ТНПА",
-  "ПОРОГИ ПОТРЕБЛЕНИЯ ТЭР",
-  "ЭТАП 01",
-  "IR / тепловизор",
-  "PDCA",
-  "PBP · ГРАДАЦИЯ МЕР",
-  "Главный энергетик",
-  "АСКУЭ / АСТУЭ",
-] as const;
+const HALL_MIN_FONT = 28;
 
 const SUPPORTED_TRANSITIONS = new Set(["fade", "slide", "zoom", "none"]);
 const FORBIDDEN_STYLE_KEYS = ["textTransform", "fontStyle"] as const;
@@ -200,17 +191,21 @@ describe("energyManagementPresentation seed", () => {
     }
   });
 
-  it("keeps diagram copy as editable text and uses photos instead of baked SVG diagrams", () => {
+  it("keeps hall-readable type and uses photos instead of baked SVG diagrams", () => {
     const [titleSlide, ...contentSlides] = energyManagementPresentation.slides;
     const titleImages = titleSlide!.elements.filter((element) => element.type === "image");
     expect(titleImages).toHaveLength(1);
     expect(titleImages[0]?.content).toContain("assets/images/title-campus.jpg");
 
-    const deckText = energyManagementPresentation.slides
-      .map((slide) => collectTextContent(slide))
-      .join("\n");
-    for (const anchor of DIAGRAM_TEXT_ANCHORS) {
-      expect(deckText).toContain(anchor);
+    for (const slide of energyManagementPresentation.slides) {
+      for (const element of slide.elements) {
+        if (element.type !== "text" || element.id.includes("foot")) {
+          continue;
+        }
+        const fontSize = element.styles.fontSize;
+        expect(typeof fontSize).toBe("number");
+        expect(fontSize).toBeGreaterThanOrEqual(HALL_MIN_FONT);
+      }
     }
 
     contentSlides.forEach((slide) => {
