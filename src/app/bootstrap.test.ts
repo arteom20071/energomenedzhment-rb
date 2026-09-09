@@ -117,6 +117,30 @@ describe("bootstrapEditor", () => {
     ).toBe(true);
   });
 
+  it("replaces stored em-pres drafts that lost content photos", async () => {
+    const runtime = createEditorRuntime(new FakeIdbFacade());
+    const stale = cloneSeedPresentation();
+    stale.slides[1]!.elements = stale.slides[1]!.elements.filter(
+      (element) => element.type !== "image",
+    );
+    await runtime.documents.save({
+      id: stale.id,
+      presentation: stale,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    setActiveProjectId(stale.id);
+
+    const result = await bootstrapEditor(runtime, "/repo/");
+    expect(result.kind).toBe("ready");
+    if (result.kind !== "ready") {
+      return;
+    }
+    expect(
+      result.presentation.slides[1]?.elements.some((element) => element.type === "image"),
+    ).toBe(true);
+  });
+
   it("replaces stored em-pres drafts that still contain cramped seed diagrams", async () => {
     const runtime = createEditorRuntime(new FakeIdbFacade());
     const stale = cloneSeedPresentation();

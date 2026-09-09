@@ -5,7 +5,6 @@ import {
 } from "../seed/energyManagement";
 
 const LEGACY_SEED_DIAGRAM_IMAGE = /slide-\d+-/;
-const STALE_CONTENT_PHOTO = /photo-(overview|legal|threshold|audit|instruments|pdca|measures|org|roadmap)\.jpg/;
 
 export function hasLegacySeedDiagramImages(presentation: Presentation): boolean {
   if (presentation.id !== "em-pres") {
@@ -31,21 +30,17 @@ export function shouldReplaceEnergySeedDraft(presentation: Presentation): boolea
     return true;
   }
 
-  if (
-    presentation.slides.some((slide) =>
-      slide.elements.some(
-        (element) =>
-          element.type === "image" &&
-          typeof element.content === "string" &&
-          STALE_CONTENT_PHOTO.test(element.content),
-      ),
-    )
-  ) {
+  const slideIds = new Set(presentation.slides.map((slide) => slide.id));
+  if (!slideIds.has("em-slide-00") || !slideIds.has("em-slide-10")) {
     return true;
   }
 
-  const slideIds = new Set(presentation.slides.map((slide) => slide.id));
-  if (!slideIds.has("em-slide-00") || !slideIds.has("em-slide-10")) {
+  const missingContentPhoto = presentation.slides.some(
+    (slide) =>
+      slide.id !== "em-slide-00" &&
+      !slide.elements.some((element) => element.type === "image"),
+  );
+  if (missingContentPhoto) {
     return true;
   }
 
