@@ -126,7 +126,7 @@ export function SlideStrip() {
   return (
     <section
       aria-label="Лента слайдов"
-      className="flex h-28 shrink-0 items-center gap-2 border-t border-slate-800 bg-slate-900 px-4"
+      className="flex h-36 shrink-0 items-center gap-2 border-t border-slate-800 bg-slate-900 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1 sm:px-4"
     >
       <div
         role="tablist"
@@ -141,8 +141,7 @@ export function SlideStrip() {
             <SlideThumbnail
               key={slide.id}
               index={index}
-              slideId={slide.id}
-              background={slide.background}
+              slide={slide}
               isActive={slide.id === activeSlideId}
               tabIndex={tabProps.tabIndex}
               tabRef={tabProps.ref}

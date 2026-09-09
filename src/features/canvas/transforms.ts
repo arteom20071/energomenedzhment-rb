@@ -117,10 +117,12 @@ export function parseMoveableDrag(
 
 export function parseMoveableResize(
   event: MoveableResizeEvent,
-  effectiveScale: number,
+  _effectiveScale: number,
   base: TransformBase,
 ): Pick<ElementTransform, "x" | "y" | "width" | "height"> {
-  const position = applyTranslate(base, event.translate, effectiveScale);
+  // Moveable `zoom` matches the CSS stage scale, so width/height and the
+  // accompanying drag.translate are already in logical CSS pixels.
+  const position = applyTranslate(base, event.translate, 1);
 
   return {
     ...position,

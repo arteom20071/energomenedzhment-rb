@@ -57,13 +57,22 @@ describe("transforms", () => {
       expect(parsed.y).toBe(base.y);
     });
 
-    it("converts resize drag translate but not dimensions", () => {
+    it("keeps resize translate in the same CSS space as width/height", () => {
       const parsed = parseMoveableResize(
         { translate: [20, 0], width: 140, height: 80 },
         2,
         base,
       );
-      expect(parsed).toEqual({ x: 110, y: 200, width: 140, height: 80 });
+      expect(parsed).toEqual({ x: 120, y: 200, width: 140, height: 80 });
+    });
+
+    it("does not divide west-handle translate by the display scale", () => {
+      const parsed = parseMoveableResize(
+        { translate: [-20, 0], width: 180, height: 80 },
+        0.4,
+        { ...base, width: 200, height: 80 },
+      );
+      expect(parsed).toEqual({ x: 80, y: 200, width: 180, height: 80 });
     });
   });
 

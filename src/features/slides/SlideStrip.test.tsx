@@ -49,6 +49,7 @@ describe("SlideStrip", () => {
     expect(tabs).toHaveLength(2);
     expect(tabs[0]).toHaveAttribute("aria-selected", "false");
     expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId(`slide-preview-${useEditorStore.getState().presentation.slides[0]!.id}`)).toBeInTheDocument();
   });
 
   it("activates a slide when its thumbnail is clicked", () => {

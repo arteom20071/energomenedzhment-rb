@@ -75,7 +75,7 @@ export function SlideRenderer({
       style={{ width: `${viewportWidth}px`, height: `${viewportHeight}px` }}
     >
       <div
-        data-testid="slide-canvas"
+        data-testid={interactive ? "slide-canvas" : undefined}
         className="relative overflow-hidden"
         style={{
           width: `${viewportWidth}px`,
@@ -85,6 +85,7 @@ export function SlideRenderer({
         }}
       >
         <div
+          data-slide-stage="true"
           className="relative"
           style={{
             width: `${CANVAS_WIDTH}px`,

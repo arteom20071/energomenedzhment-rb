@@ -298,7 +298,13 @@ function buildStore(): EditorStoreApi {
   return createEditorStore({ presentation });
 }
 
-function CanvasHarness({ store }: { store: EditorStoreApi }) {
+function CanvasHarness({
+  store,
+  fitScale,
+}: {
+  store: EditorStoreApi;
+  fitScale?: number;
+}) {
   const slide = useStore(store, (state) =>
     state.presentation.slides.find((item) => item.id === state.activeSlideId),
   )!;
@@ -312,6 +318,7 @@ function CanvasHarness({ store }: { store: EditorStoreApi }) {
       slide={slide}
       selectedIds={selectedIds}
       zoom={zoom}
+      fitScale={fitScale}
       editingTextId={editingTextId}
       cropElementId={cropElementId}
       onSelectionChange={(ids) => store.getState().setSelection(ids)}
@@ -369,6 +376,40 @@ describe("SlideCanvas", () => {
       .elements.find((el) => el.id === "el-a");
     expect(element?.width).toBe(240);
     expect(element?.height).toBe(80);
+  });
+
+  it("keeps west-handle resize aligned when the slide is fitted below 100%", async () => {
+    const store = buildStore();
+    store.getState().setSelection(["el-a"]);
+    const commitSpy = vi.spyOn(store.getState(), "commitElementTransforms");
+
+    render(<CanvasHarness store={store} fitScale={0.4} />);
+
+    const handlers = capturedMoveableHandlers as {
+      onResizeStart?: (event: { direction: string }) => void;
+      onResize?: (event: {
+        target: HTMLElement;
+        width: number;
+        height: number;
+        drag: { translate: number[] };
+      }) => void;
+      onResizeEnd?: () => void;
+    };
+    handlers.onResizeStart?.({ direction: "w" });
+    handlers.onResize?.({
+      target: target("el-a"),
+      width: 180,
+      height: 80,
+      drag: { translate: [-20, 0] },
+    });
+    handlers.onResizeEnd?.();
+
+    await waitFor(() => expect(commitSpy).toHaveBeenCalledTimes(1));
+    const element = store
+      .getState()
+      .presentation.slides[0]!
+      .elements.find((el) => el.id === "el-a");
+    expect(element).toMatchObject({ x: 80, y: 100, width: 180, height: 80 });
   });
 
   it("commits rotation without positional snap side effects", async () => {

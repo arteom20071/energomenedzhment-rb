@@ -83,7 +83,7 @@ export function LeftToolSidebar(props: LeftToolSidebarProps) {
               tabIndex={tabProps.tabIndex}
               onFocus={tabProps.onFocus}
               onClick={() => setActiveTab(id)}
-              className={`flex flex-1 flex-col items-center gap-1 px-2 py-3 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-indigo-400 ${
+              className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-indigo-400 ${
                 selected
                   ? "border-b-2 border-indigo-500 text-indigo-300"
                   : "text-slate-400 hover:text-slate-200"

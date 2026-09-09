@@ -33,6 +33,7 @@ import {
   generateId,
 } from "./domain/factories";
 import type { ElementAnimation, Slide, SlideTransition } from "./domain/presentation";
+import { FittedCanvasHost } from "./features/canvas/FittedCanvasHost";
 import { SlideCanvas } from "./features/canvas/SlideCanvas";
 import { parseImportJson } from "./features/import/importParser";
 import { MediaPanel } from "./features/media/MediaPanel";
@@ -44,6 +45,7 @@ import { createStoredAssetResolver } from "./services/export/imageContent";
 import { generateStandaloneHtml } from "./services/export/htmlExporter";
 import { exportPresentationJson } from "./services/export/jsonExporter";
 import { captureSlidePng } from "./services/export/pngExporter";
+import { exportPresentationPptx } from "./services/export/pptxExporter";
 import { toAssetReference } from "./services/persistence/assetRepository";
 import { useEditorStore } from "./store/editorStore";
 
@@ -392,6 +394,16 @@ function EditorApp({ runtime: runtimeProp, baseUrl }: AppProps) {
     downloadText(result.filename, result.html, "text/html");
   }, [presentation, runtime.assets, showToast]);
 
+  const handleExportPptx = useCallback(async () => {
+    const resolver = createStoredAssetResolver((id) => runtime.assets.get(id));
+    const result = await exportPresentationPptx(presentation, resolver);
+    if (!result.success) {
+      showToast(result.error);
+      return;
+    }
+    downloadBlob(result.filename, result.blob);
+  }, [presentation, runtime.assets, showToast]);
+
   const handleExportPng = useCallback(async () => {
     const node = document.querySelector<HTMLElement>('[data-testid="slide-canvas"]');
     if (!node) {
@@ -408,7 +420,7 @@ function EditorApp({ runtime: runtimeProp, baseUrl }: AppProps) {
 
   if (!ready) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-300">
+      <div className="grid min-h-dvh place-items-center bg-slate-950 text-slate-300">
         Загрузка редактора…
       </div>
     );
@@ -439,22 +451,27 @@ function EditorApp({ runtime: runtimeProp, baseUrl }: AppProps) {
       <EditorShell
         canvas={
           canvasSlide ? (
-            <SlideCanvas
-              slide={canvasSlide}
-              selectedIds={selectedElementIds}
-              zoom={zoom}
-              editingTextId={editingTextId}
-              cropElementId={cropElementId}
-              onSelectionChange={setSelection}
-              onToggleSelection={toggleSelection}
-              onClearSelection={clearSelection}
-              onCommitTransforms={commitElementTransforms}
-              onUpdateElement={updateElement}
-              onSetEditingTextId={setEditingTextId}
-              onSetCropElementId={setCropElementId}
-              onDeleteSelected={deleteSelectedElements}
-              onDuplicateSelected={duplicateSelectedElements}
-            />
+            <FittedCanvasHost>
+              {(fitScale) => (
+                <SlideCanvas
+                  slide={canvasSlide}
+                  selectedIds={selectedElementIds}
+                  zoom={zoom}
+                  fitScale={fitScale}
+                  editingTextId={editingTextId}
+                  cropElementId={cropElementId}
+                  onSelectionChange={setSelection}
+                  onToggleSelection={toggleSelection}
+                  onClearSelection={clearSelection}
+                  onCommitTransforms={commitElementTransforms}
+                  onUpdateElement={updateElement}
+                  onSetEditingTextId={setEditingTextId}
+                  onSetCropElementId={setCropElementId}
+                  onDeleteSelected={deleteSelectedElements}
+                  onDuplicateSelected={duplicateSelectedElements}
+                />
+              )}
+            </FittedCanvasHost>
           ) : (
             <p className="text-slate-400">Нет активного слайда</p>
           )
@@ -610,6 +627,9 @@ function EditorApp({ runtime: runtimeProp, baseUrl }: AppProps) {
         }}
         onExportHtml={() => {
           void handleExportHtml();
+        }}
+        onExportPptx={() => {
+          void handleExportPptx();
         }}
         onTransitionChange={(transition: SlideTransition) => {
           if (activeSlide) {
