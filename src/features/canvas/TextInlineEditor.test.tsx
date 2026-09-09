@@ -39,4 +39,23 @@ describe("TextInlineEditor", () => {
     expect(onCancel).toHaveBeenCalledOnce();
     expect(onCommit).not.toHaveBeenCalled();
   });
+
+  it("inherits text styles from the element", () => {
+    render(
+      <TextInlineEditor
+        element={textElement({
+          styles: { fontSize: 28, color: "#0f172a", fontFamily: "Inter, sans-serif" },
+        })}
+        scale={1}
+        onCommit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox")).toHaveStyle({
+      fontSize: "28px",
+      color: "rgb(15, 23, 42)",
+      whiteSpace: "pre-wrap",
+    });
+  });
 });

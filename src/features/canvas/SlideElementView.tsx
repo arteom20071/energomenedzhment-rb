@@ -31,7 +31,10 @@ function mergeElement(
   return { ...element, ...preview };
 }
 
-function wrapperStyle(element: SlideElement): CSSProperties {
+const LAYOUT_TRANSITION =
+  "left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease, transform 180ms ease";
+
+function wrapperStyle(element: SlideElement, isTransforming: boolean): CSSProperties {
   return {
     position: "absolute",
     left: `${element.x}px`,
@@ -42,6 +45,7 @@ function wrapperStyle(element: SlideElement): CSSProperties {
     transformOrigin: "center center",
     zIndex: element.zIndex,
     boxSizing: "border-box",
+    transition: isTransforming ? "none" : LAYOUT_TRANSITION,
   };
 }
 
@@ -66,7 +70,8 @@ export function SlideElementView({
   onRegisterRef,
 }: SlideElementViewProps) {
   const resolved = mergeElement(element, preview);
-  const frameStyle = wrapperStyle(resolved);
+  const isTransforming = preview !== undefined;
+  const frameStyle = wrapperStyle(resolved, isTransforming);
   const typeStyles = toCssProperties(resolved.type, resolved.styles);
   const handleRef = useCallback(
     (node: HTMLElement | null) => {
@@ -78,6 +83,7 @@ export function SlideElementView({
   const sharedProps = {
     "data-testid": `element-${resolved.id}`,
     "data-element-id": resolved.id,
+    "data-transforming": isTransforming ? "true" : undefined,
     tabIndex: interactive ? 0 : undefined,
     role: interactive ? "button" : undefined,
     "aria-label": selectionLabel(resolved),
@@ -98,7 +104,16 @@ export function SlideElementView({
     }
 
     return (
-      <div {...sharedProps} style={{ ...frameStyle, ...typeStyles }}>
+      <div
+        {...sharedProps}
+        style={{
+          ...frameStyle,
+          ...typeStyles,
+          whiteSpace: "pre-wrap",
+          overflow: "hidden",
+          wordBreak: "break-word",
+        }}
+      >
         {resolved.content ?? ""}
       </div>
     );

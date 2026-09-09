@@ -403,6 +403,15 @@ export function SlideCanvas({
       commitResize,
       deleteSelected: onDeleteSelected,
       duplicateSelected: onDuplicateSelected,
+      beginTextEdit: () => {
+        if (selectedElements.length !== 1) {
+          return;
+        }
+        const selected = selectedElements[0];
+        if (selected?.type === "text") {
+          onSetEditingTextId(selected.id);
+        }
+      },
     });
 
     window.addEventListener("keydown", handler);
@@ -415,6 +424,8 @@ export function SlideCanvas({
     editingTextId,
     onDeleteSelected,
     onDuplicateSelected,
+    onSetEditingTextId,
+    selectedElements,
     selectedIds,
   ]);
 

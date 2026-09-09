@@ -225,6 +225,9 @@ export function toCssProperties(
     css.borderWidth = appendPx(safe.borderWidth);
     css.borderStyle = safe.borderWidth ? "solid" : undefined;
     css.borderRadius = appendPx(safe.borderRadius);
+    if (safe.shapeKind === "ellipse" || safe.shapeKind === "circle") {
+      css.borderRadius = "50%";
+    }
   }
 
   if (safe.opacity !== undefined) {

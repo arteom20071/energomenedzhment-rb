@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { SlideElement } from "../../domain/presentation";
+import { toCssProperties } from "./styles";
 
 export interface TextInlineEditorProps {
   element: SlideElement;
@@ -32,7 +33,9 @@ export function TextInlineEditor({
     selection?.addRange(range);
   }, []);
 
+  const typeStyles = toCssProperties("text", element.styles);
   const style = {
+    ...typeStyles,
     position: "absolute" as const,
     left: `${element.x * scale}px`,
     top: `${element.y * scale}px`,
@@ -42,7 +45,9 @@ export function TextInlineEditor({
     transformOrigin: "center center",
     zIndex: element.zIndex + 1000,
     outline: "2px solid rgb(99 102 241)",
-    overflow: "auto" as const,
+    overflow: "hidden" as const,
+    whiteSpace: "pre-wrap" as const,
+    wordBreak: "break-word" as const,
   };
 
   return (

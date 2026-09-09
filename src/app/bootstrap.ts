@@ -17,7 +17,7 @@ import {
   type IDBFacade,
 } from "../services/persistence";
 import { AssetUrlCache } from "../services/persistence/assetUrlCache";
-import { cloneSeedPresentation } from "./cloneSeed";
+import { cloneSeedPresentation, hasLegacySeedDiagramImages } from "./cloneSeed";
 
 export type BootstrapResult =
   | {
@@ -97,7 +97,9 @@ export async function bootstrapEditor(
       const record = validateDocumentRecord(raw);
       return {
         kind: "ready",
-        presentation: record.presentation,
+        presentation: hasLegacySeedDiagramImages(record.presentation)
+          ? seed
+          : record.presentation,
         documentId: record.id,
         createdAt: record.createdAt,
         zoom: getUiPrefs()?.zoom,

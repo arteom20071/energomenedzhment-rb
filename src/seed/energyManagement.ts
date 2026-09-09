@@ -1,4 +1,15 @@
 import type { Presentation, Slide, SlideElement } from "../domain/presentation";
+import {
+  instrumentsRow,
+  legalHierarchy,
+  orgChart,
+  paybackRow,
+  pdcaWheel,
+  processFlow,
+  roadmap,
+  schemaDiagram,
+  thresholdDiagram,
+} from "./diagrams";
 
 const FONT = "Inter, sans-serif";
 const INK = "#0f172a";
@@ -8,18 +19,6 @@ const ACCENT_LIGHT = "#eef2ff";
 const EMERALD = "#059669";
 const EMERALD_LIGHT = "#ecfdf5";
 const BORDER = "#e2e8f0";
-
-const IMG = {
-  s1: "assets/images/slide-1-schema.svg",
-  s2: "assets/images/slide-2-legal.svg",
-  s3: "assets/images/slide-3-threshold.svg",
-  s4: "assets/images/slide-4-process.svg",
-  s5: "assets/images/slide-5-instruments.svg",
-  s6: "assets/images/slide-6-pdca.svg",
-  s7: "assets/images/slide-7-measures.svg",
-  s8: "assets/images/slide-8-org.svg",
-  s9: "assets/images/slide-9-roadmap.svg",
-} as const;
 
 type Anim = SlideElement["animation"];
 
@@ -86,32 +85,6 @@ function shp(
     zIndex: z,
     animation,
     styles,
-  };
-}
-
-function img(
-  id: string,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  src: string,
-  alt: string,
-  z: number,
-  animation?: Anim,
-): SlideElement {
-  return {
-    id,
-    type: "image",
-    x,
-    y,
-    width: w,
-    height: h,
-    rotation: 0,
-    zIndex: z,
-    content: src,
-    animation,
-    styles: { objectFit: "contain", alt },
   };
 }
 
@@ -210,6 +183,7 @@ function legalItem(
 
 function slide1(): Slide {
   const p = "em-s01";
+  const diagram = schemaDiagram(`${p}-dia`, { x: 1020, y: 140, w: 820, h: 720 }, 10);
   return {
     id: "em-slide-01",
     background: "#ffffff",
@@ -258,24 +232,15 @@ function slide1(): Slide {
         fontSize: 13,
         fontWeight: 600,
       }, "fade-up"),
-      img(
-        `${p}-diagram`,
-        1020,
-        140,
-        820,
-        720,
-        IMG.s1,
-        "Контур управления ТЭР: закон, энергоаудит, СЭнМ, АСКУЭ",
-        10,
-        "scale",
-      ),
-      ...footerBlock(p, "Республика Беларусь · производственный сектор", "239-З · Госстандарт · ISO 50001", 11),
+      ...diagram.elements,
+      ...footerBlock(p, "Республика Беларусь · производственный сектор", "239-З · Госстандарт · ISO 50001", diagram.nextZ),
     ],
   };
 }
 
 function slide2(): Slide {
   const p = "em-s02";
+  const diagram = legalHierarchy(`${p}-dia`, { x: 940, y: 162, w: 900, h: 260 }, 19);
   return {
     id: "em-slide-02",
     background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
@@ -324,19 +289,9 @@ function slide2(): Slide {
         "Нормирование удельных расходов — с 300 т у.т./год и/или при теплоисточнике ≥ 0,5 Гкал/ч (ст. 17).",
         15,
       ),
-      img(
-        `${p}-hierarchy`,
-        940,
-        162,
-        900,
-        260,
-        IMG.s2,
-        "Иерархия ТНПА: закон, постановления СМ, ГОСТ ISO 50001, локальные регламенты",
-        19,
-        "scale",
-      ),
-      card(`${p}-oblig`, 940, 438, 900, 280, 20, ACCENT_LIGHT),
-      txt(`${p}-oblig-h`, 964, 454, 852, 28, "Обязательства субъекта хозяйствования", 21, {
+      ...diagram.elements,
+      card(`${p}-oblig`, 940, 438, 900, 280, diagram.nextZ, ACCENT_LIGHT),
+      txt(`${p}-oblig-h`, 964, 454, 852, 28, "Обязательства субъекта хозяйствования", diagram.nextZ + 1, {
         fontSize: 18,
         fontWeight: 700,
       }, "fade-up"),
@@ -347,7 +302,7 @@ function slide2(): Slide {
         852,
         28,
         "• Разработка и защита удельных норм расхода ТЭР.",
-        22,
+        diagram.nextZ + 2,
         { fontSize: 14, lineHeight: 1.45 },
         "fade-up",
       ),
@@ -358,7 +313,7 @@ function slide2(): Slide {
         852,
         56,
         "• План мероприятий по энергосбережению: гос. организации от 300 т у.т.; иные юрлица — от 1 500 т у.т. (ст. 19).",
-        23,
+        diagram.nextZ + 3,
         { fontSize: 14, lineHeight: 1.45 },
         "fade-up",
       ),
@@ -369,17 +324,19 @@ function slide2(): Slide {
         852,
         28,
         "• Ежегодная статистическая отчётность по форме 4-энергосбережение.",
-        24,
+        diagram.nextZ + 4,
         { fontSize: 14, lineHeight: 1.45 },
         "fade-up",
       ),
-      ...footerBlock(p, "Нормативно-правовой базис", "Слайд 2 / 9", 25),
+      ...footerBlock(p, "Нормативно-правовой базис", "Слайд 2 / 9", diagram.nextZ + 5),
     ],
   };
 }
 
 function slide3(): Slide {
   const p = "em-s03";
+  const diagram = thresholdDiagram(`${p}-dia`, { x: 80, y: 330, w: 820, h: 210 }, 19);
+  const z = diagram.nextZ;
   const kpi = (suffix: string, x: number, lbl: string, val: string, hint: string, z: number) => [
     card(`${p}-kpi-${suffix}`, x, 162, 420, 156, z, "#ffffff"),
     txt(`${p}-kpi-${suffix}-l`, x + 16, 174, 388, 22, lbl, z + 1, {
@@ -442,19 +399,9 @@ function slide3(): Slide {
         "ГОСТ ISO 50001-2021: облегчённый отчёт — анализ эффективности ТЭР за 3 года",
         15,
       ),
-      img(
-        `${p}-chart`,
-        80,
-        330,
-        820,
-        210,
-        IMG.s3,
-        "Пороги потребления ТЭР: 300, 1500 т у.т.",
-        19,
-        "scale",
-      ),
-      card(`${p}-proc`, 940, 330, 900, 400, 20, EMERALD_LIGHT),
-      txt(`${p}-proc-h`, 964, 346, 852, 28, "Процедурные условия (ст. 11–13)", 21, {
+      ...diagram.elements,
+      card(`${p}-proc`, 940, 330, 900, 400, z, EMERALD_LIGHT),
+      txt(`${p}-proc-h`, 964, 346, 852, 28, "Процедурные условия (ст. 11–13)", z + 1, {
         fontSize: 18,
         fontWeight: 700,
         color: EMERALD,
@@ -466,7 +413,7 @@ function slide3(): Slide {
         852,
         48,
         "• Основание — техническое задание, согласованное с территориальным органом Департамента.",
-        22,
+        z + 2,
         { fontSize: 13, lineHeight: 1.4 },
         "fade-up",
       ),
@@ -477,7 +424,7 @@ function slide3(): Slide {
         852,
         48,
         "• После модернизации основного технологического оборудования (≤ 3 лет) — экспресс-энергоаудит.",
-        23,
+        z + 3,
         { fontSize: 13, lineHeight: 1.4 },
         "fade-up",
       ),
@@ -488,7 +435,7 @@ function slide3(): Slide {
         852,
         48,
         "• Ниже 1 500 т у.т. — добровольно, в том числе в формате экспресс-обследования.",
-        24,
+        z + 4,
         { fontSize: 13, lineHeight: 1.4 },
         "fade-up",
       ),
@@ -499,7 +446,7 @@ function slide3(): Slide {
         852,
         56,
         "• Сертификат ГОСТ ISO 50001-2021: отчёт из трёх блоков — эффективность за 3 года, факт мероприятий, план экономии.",
-        25,
+        z + 5,
         { fontSize: 13, lineHeight: 1.4 },
         "fade-up",
       ),
@@ -510,17 +457,19 @@ function slide3(): Slide {
         852,
         56,
         "• Оплата услуги — за счёт обследуемого лица. Результат — паспорт, мероприятия, предложения по прогрессивным нормам.",
-        26,
+        z + 6,
         { fontSize: 13, lineHeight: 1.4 },
         "fade-up",
       ),
-      ...footerBlock(p, "Критерии обязательности", "Слайд 3 / 9", 27),
+      ...footerBlock(p, "Критерии обязательности", "Слайд 3 / 9", z + 7),
     ],
   };
 }
 
 function slide4(): Slide {
   const p = "em-s04";
+  const diagram = processFlow(`${p}-dia`, { x: 80, y: 158, w: 1760, h: 148 }, 3);
+  const z = diagram.nextZ;
   const stage = (n: string, x: number, title: string, body: string, z: number, emerald = false) => [
     card(`${p}-st${n}`, x, 330, 420, 250, z, emerald ? EMERALD_LIGHT : ACCENT_LIGHT),
     txt(`${p}-st${n}-idx`, x + 16, 342, 48, 32, n, z + 1, {
@@ -549,44 +498,34 @@ function slide4(): Slide {
         "ст. 10 Закона № 239-З\nпотенциал · паспорт · нормы",
         0,
       ),
-      img(
-        `${p}-flow`,
-        80,
-        158,
-        1760,
-        148,
-        IMG.s4,
-        "Четыре этапа энергоаудита",
-        3,
-        "scale",
-      ),
+      ...diagram.elements,
       ...stage(
         "1",
         80,
         "Документарный анализ",
         "Динамика потребления ТЭР (не менее 36 мес.), договоры энергоснабжения, тарифы, структура топливно-энергетического баланса, режимы, ремонты, данные АСКУЭ.",
-        7,
+        z,
       ),
       ...stage(
         "2",
         520,
         "Инструментальное обследование",
         "Замеры фактических нагрузок, расход теплоносителей, качество электроэнергии, выявление необоснованных потерь, утечек, сверхнормативных холостых ходов.",
-        11,
+        z + 4,
       ),
       ...stage(
         "3",
         960,
         "Энергетический баланс",
         "Фактический баланс vs нормативный. Сведение прихода/расхода по видам ТЭР, выделение ВЭР, коммерческих и технологических потерь, неучтенного расхода.",
-        15,
+        z + 8,
       ),
       ...stage(
         "4",
         1400,
         "ТЭО мероприятий",
         "Пакет мер с CAPEX/OPEX, сроком окупаемости PBP, NPV при необходимости. Включение в план энергосбережения; предложения по прогрессивным нормам (ст. 14).",
-        19,
+        z + 12,
         true,
       ),
       txt(
@@ -596,17 +535,19 @@ function slide4(): Slide {
         1760,
         72,
         "Выходные документы: отчёт об энергетическом обследовании, энергетический паспорт объекта, перечень энергосберегающих мероприятий, обоснование перехода на прогрессивные нормы расхода ТЭР (≥ 1 500 т у.т.).",
-        23,
+        z + 16,
         { fontSize: 13, color: MUTED },
         "fade-up",
       ),
-      ...footerBlock(p, "Алгоритм энергоаудита", "Слайд 4 / 9", 24),
+      ...footerBlock(p, "Алгоритм энергоаудита", "Слайд 4 / 9", z + 17),
     ],
   };
 }
 
 function slide5(): Slide {
   const p = "em-s05";
+  const diagram = instrumentsRow(`${p}-dia`, { x: 80, y: 158, w: 820, h: 168 }, 3);
+  const z = diagram.nextZ;
   const tool = (code: string, x: number, title: string, body: string, z: number) => [
     card(`${p}-tl-${code}`, x, 400, 420, 220, z, "#ffffff"),
     txt(`${p}-tl-${code}-c`, x + 16, 412, 60, 28, code, z + 1, {
@@ -635,19 +576,9 @@ function slide5(): Slide {
         "поверенный парк СИ\nне менее 3 экспертов",
         0,
       ),
-      img(
-        `${p}-tools`,
-        80,
-        158,
-        820,
-        168,
-        IMG.s5,
-        "Тепловизор, УЗ-расходомер, газоанализатор, PQ-анализатор",
-        3,
-        "scale",
-      ),
-      card(`${p}-req`, 940, 158, 900, 168, 4, ACCENT_LIGHT),
-      txt(`${p}-req-h`, 964, 174, 852, 28, "Требование к аудиторской организации", 5, {
+      ...diagram.elements,
+      card(`${p}-req`, 940, 158, 900, 168, z, ACCENT_LIGHT),
+      txt(`${p}-req-h`, 964, 174, 852, 28, "Требование к аудиторской организации", z + 1, {
         fontSize: 18,
         fontWeight: 700,
       }, "fade-up"),
@@ -658,7 +589,7 @@ function slide5(): Slide {
         852,
         108,
         "Штат ≥ 3 профильных аттестованных экспертов; средства измерений в сфере законодательной метрологии — с действующей поверкой. Протоколы замеров входят в отчёт и паспорт.",
-        6,
+        z + 2,
         { fontSize: 14, lineHeight: 1.45 },
         "fade-up",
       ),
@@ -667,36 +598,38 @@ function slide5(): Slide {
         80,
         "Тепловизионная съёмка",
         "Ограждающие конструкции, теплотрассы, футеровка печей. Детекция мостиков холода, дефектов изоляции, присосов, перегрева контактных соединений.",
-        7,
+        z + 3,
       ),
       ...tool(
         "US",
         520,
         "Ультразвуковая расходометрия",
         "Безнарезной (clamp-on) учёт расхода жидкостей в тепловых и технологических сетях. Сверка коммерческого и технического учёта, поиск неучтённого расхода.",
-        11,
+        z + 7,
       ),
       ...tool(
         "GA",
         960,
         "Газоанализ котлоагрегатов",
         "Состав уходящих дымовых газов: O₂, CO, CO₂, температура. Оптимизация коэффициента избытка воздуха α, снижение q₂ и химического недожога.",
-        15,
+        z + 11,
       ),
       ...tool(
         "PQ",
         1400,
         "Электроизмерительные комплексы",
         "Качество электроэнергии (ГОСТ 32144), реактивная мощность, cos φ, THD, несимметрия. База для ЧРП, компенсации Q и исключения штрафных составляющих.",
-        19,
+        z + 15,
       ),
-      ...footerBlock(p, "Инструментальный парк", "Слайд 5 / 9", 23),
+      ...footerBlock(p, "Инструментальный парк", "Слайд 5 / 9", z + 19),
     ],
   };
 }
 
 function slide6(): Slide {
   const p = "em-s06";
+  const diagram = pdcaWheel(`${p}-dia`, { x: 80, y: 158, w: 880, h: 430 }, 3);
+  const z = diagram.nextZ;
   const pdca = (code: string, label: string, x: number, y: number, body: string, z: number, emerald = false) => [
     card(`${p}-pd-${code}`, x, y, 420, 220, z, emerald ? EMERALD_LIGHT : ACCENT_LIGHT),
     txt(`${p}-pd-${code}-h`, x + 16, y + 12, 388, 32, `${code} · ${label}`, z + 1, {
@@ -721,24 +654,14 @@ function slide6(): Slide {
         "PDCA · EnB · EnPI\nвнутренний аудит ≥ 1 / год",
         0,
       ),
-      img(
-        `${p}-pdca`,
-        80,
-        158,
-        880,
-        430,
-        IMG.s6,
-        "Цикл PDCA системы энергетического менеджмента",
-        3,
-        "scale",
-      ),
+      ...diagram.elements,
       ...pdca(
         "Plan",
         "Планирование",
         1000,
         158,
         "Энергополитика высшего руководства. Энергетический анализ. Значимое энергоиспользование (SEU). Базовые линии EnB. Показатели результативности EnPI. Цели, задачи, планы действий.",
-        4,
+        z,
       ),
       ...pdca(
         "Do",
@@ -746,7 +669,7 @@ function slide6(): Slide {
         1420,
         158,
         "Регламенты эксплуатации и обслуживания энергоёмкого оборудования. Компетентность и обучение персонала. Операционное управление SEU. Закупки с учётом энергоэффективности.",
-        7,
+        z + 3,
       ),
       ...pdca(
         "Check",
@@ -754,7 +677,7 @@ function slide6(): Slide {
         1000,
         394,
         "Мониторинг EnPI против EnB. Внутренний аудит СЭнМ — минимум 1 раз в год. Инструментальный мониторинг, анализ отклонений, несоответствия.",
-        10,
+        z + 6,
       ),
       ...pdca(
         "Act",
@@ -762,21 +685,23 @@ function slide6(): Slide {
         1420,
         394,
         "Корректирующие действия. Пересмотр целей и EnPI. В РБ сертификат даёт облегчённый формат обязательного энергоаудита (анализ за 3 года + приоритеты экономии).",
-        13,
+        z + 9,
         true,
       ),
-      txt(`${p}-pdca-tag`, 80, 608, 400, 24, "PDCA · цикл непрерывного улучшения", 16, {
+      txt(`${p}-pdca-tag`, 80, 608, 400, 24, "PDCA · цикл непрерывного улучшения", z + 12, {
         fontSize: 13,
         fontWeight: 600,
         color: MUTED,
       }, "fade-up"),
-      ...footerBlock(p, "СЭнМ ISO 50001", "Слайд 6 / 9", 17),
+      ...footerBlock(p, "СЭнМ ISO 50001", "Слайд 6 / 9", z + 13),
     ],
   };
 }
 
 function slide7(): Slide {
   const p = "em-s07";
+  const diagram = paybackRow(`${p}-dia`, { x: 1020, y: 158, w: 820, h: 200 }, 9);
+  const z = diagram.nextZ;
   const measure = (payback: string, x: number, title: string, body: string, z: number) => [
     card(`${p}-ms-${payback}`, x, 640, 560, 180, z, "#ffffff"),
     shp(`${p}-pb-${payback}`, x + 16, 656, 72, 32, z + 1, { fill: ACCENT, borderRadius: 8 }),
@@ -856,45 +781,37 @@ function slide7(): Slide {
         { fontSize: 13, lineHeight: 1.4 },
         "fade-up",
       ),
-      img(
-        `${p}-payback`,
-        1020,
-        158,
-        820,
-        200,
-        IMG.s7,
-        "Градация мер по сроку окупаемости",
-        9,
-        "scale",
-      ),
+      ...diagram.elements,
       ...measure(
         "≤ 1 г.",
         80,
         "Беззатратные / низкозатратные",
         "Уплотнение контуров, оптимизация графиков пуска, исключение утечек сжатого воздуха, отключение холостого хода, гидравлическая наладка, режимная наладка котлов (α).",
-        10,
+        z,
       ),
       ...measure(
         "1–3 г.",
         680,
         "Среднезатратные",
         "ЧРП на насосах и тягодутьевых механизмах, автоматизация ИТП, компенсация реактивной мощности, замена освещения и теплоизоляции трубопроводов.",
-        15,
+        z + 5,
       ),
       ...measure(
         "3–5 л.",
         1280,
         "CAPEX / ВЭР",
         "Когенерация, утилизация вторичных энергоресурсов, рекуперация тепла уходящих газов и стоков, модернизация теплогенерирующих установок.",
-        20,
+        z + 10,
       ),
-      ...footerBlock(p, "Нормирование и мероприятия", "Слайд 7 / 9", 25),
+      ...footerBlock(p, "Нормирование и мероприятия", "Слайд 7 / 9", z + 15),
     ],
   };
 }
 
 function slide8(): Slide {
   const p = "em-s08";
+  const diagram = orgChart(`${p}-dia`, { x: 80, y: 158, w: 820, h: 280 }, 3);
+  const z = diagram.nextZ;
   const role = (suffix: string, y: number, title: string, body: string, z: number, accent = false) => [
     card(`${p}-role-${suffix}`, 940, y, 900, 130, z, accent ? ACCENT_LIGHT : "#ffffff"),
     txt(`${p}-role-${suffix}-h`, 964, y + 14, 852, 28, title, z + 1, {
@@ -918,23 +835,13 @@ function slide8(): Slide {
         "СЭнМ · АСКУЭ · АСТУЭ\nкросс-функциональный контур",
         0,
       ),
-      img(
-        `${p}-org`,
-        80,
-        158,
-        820,
-        280,
-        IMG.s8,
-        "Организационная структура энергослужбы",
-        3,
-        "scale",
-      ),
+      ...diagram.elements,
       ...role(
         "chief",
         158,
         "Главный энергетик / энергоменеджер",
         "Оперативное управление энергохозяйством, контроль лимитов и удельных норм, координация СЭнМ, взаимодействие с Департаментом, ведение EnPI/EnB, подготовка 4-энергосбережение.",
-        4,
+        z,
         true,
       ),
       ...role(
@@ -942,14 +849,14 @@ function slide8(): Slide {
         304,
         "Энергетическая комиссия",
         "Кросс-функциональная группа: главный технолог (нормы на единицу продукции), главный механик (состояние оборудования), финансово-экономический блок (CAPEX, PBP, включение в инвестпрограмму). Утверждение приоритетов SEU.",
-        7,
+        z + 3,
       ),
       ...role(
         "auto",
         450,
         "Автоматизация учёта",
         "АСКУЭ — автоматизированная система контроля и учёта электроэнергии. АСТУЭ — автоматизированная система технического учёта энергоресурсов (тепло, пар, газ, сжатый воздух). Телеметрия в реальном времени как источник EnPI и доказательная база аудита.",
-        10,
+        z + 6,
       ),
       txt(
         `${p}-cross`,
@@ -958,17 +865,19 @@ function slide8(): Slide {
         820,
         40,
         "Кросс-функциональный контур: производство · финансы · эксплуатация · IT",
-        13,
+        z + 9,
         { fontSize: 13, color: MUTED },
         "fade-up",
       ),
-      ...footerBlock(p, "Энергослужба предприятия", "Слайд 8 / 9", 14),
+      ...footerBlock(p, "Энергослужба предприятия", "Слайд 8 / 9", z + 10),
     ],
   };
 }
 
 function slide9(): Slide {
   const p = "em-s09";
+  const diagram = roadmap(`${p}-dia`, { x: 80, y: 314, w: 1760, h: 132 }, 15);
+  const z = diagram.nextZ;
   const kpi = (suffix: string, x: number, lbl: string, val: string, hint: string, z: number) => [
     card(`${p}-k-${suffix}`, x, 158, 560, 140, z, "#ffffff"),
     txt(`${p}-k-${suffix}-l`, x + 16, 170, 528, 22, lbl, z + 1, {
@@ -1039,47 +948,37 @@ function slide9(): Slide {
         "Сертификация ГОСТ ISO 50001-2021 → облегчённый энергоаудит. Готовность паспорта и плана мероприятий к включению в госпрограммы.",
         11,
       ),
-      img(
-        `${p}-road`,
-        80,
-        314,
-        1760,
-        132,
-        IMG.s9,
-        "Дорожная карта на 12 месяцев",
-        15,
-        "scale",
-      ),
+      ...diagram.elements,
       ...phase(
         "1–3",
         80,
         "Энергоаудит",
         "ТЗ, согласование с территориальным органом, документарный и инструментальный этапы, баланс, паспорт.",
-        16,
+        z,
       ),
       ...phase(
         "4–7",
         520,
         "Внедрение рекомендаций",
         "Quick wins (PBP ≤ 1 года), запуск ЧРП/ИТП, фиксация экономии в форме 4-энергосбережение.",
-        20,
+        z + 4,
       ),
       ...phase(
         "8–10",
         960,
         "Сертификация СЭнМ",
         "Энергополитика, EnB/EnPI, внутренний аудит, анализ руководством, орган по сертификации ГОСТ ISO 50001.",
-        24,
+        z + 8,
       ),
       ...phase(
         "11–12",
         1400,
         "Автоматизация учёта",
         "АСКУЭ/АСТУЭ, дашборд EnPI, постановка мониторинга отклонений от норм расхода ТЭР.",
-        28,
+        z + 12,
         true,
       ),
-      ...footerBlock(p, "KPI и дорожная карта", "Слайд 9 / 9", 32),
+      ...footerBlock(p, "KPI и дорожная карта", "Слайд 9 / 9", z + 16),
     ],
   };
 }

@@ -59,6 +59,9 @@ function renderTextElement(element: SlideElement): string {
     "font-weight": serializeFontWeight(styles.fontWeight, "normal"),
     "text-align": serializeTextAlign(styles.textAlign, "left"),
     "line-height": serializeLineHeight(styles.lineHeight, 1.2),
+    "white-space": "pre-wrap",
+    overflow: "hidden",
+    "word-break": "break-word",
   });
   const inner = `<div class="text-content" style="${innerStyle}">${escapeHtml(serializePlainText(element.content))}</div>`;
   return renderElementShell(element, inner);
@@ -78,12 +81,16 @@ function renderImageElement(element: SlideElement): string {
 
 function renderShapeElement(element: SlideElement): string {
   const styles = element.styles as Record<string, unknown>;
+  const isEllipse = styles.shapeKind === "ellipse" || styles.shapeKind === "circle";
   const innerStyle = buildStyleAttribute({
     width: "100%",
     height: "100%",
     background: serializeColor(styles.fill, "#6366f1"),
-    "border-radius": serializePxNumber(styles.borderRadius, 0),
+    "border-radius": isEllipse ? "50%" : serializePxNumber(styles.borderRadius, 0),
     border: serializeBorder(styles.border, "none"),
+    "border-color": serializeColor(styles.borderColor, "transparent"),
+    "border-width": serializePxNumber(styles.borderWidth, 0),
+    "border-style": typeof styles.borderWidth === "number" && styles.borderWidth > 0 ? "solid" : "none",
   });
   const inner = `<div class="shape-content" style="${innerStyle}"></div>`;
   return renderElementShell(element, inner);
