@@ -7,8 +7,13 @@ import { energyManagementPresentation } from "../../seed/energyManagement";
 import { createDataUrlResolver } from "./jsonExporter";
 import { applyPptxTransitions, exportPresentationPptx } from "./pptxExporter";
 
+const SAMPLE_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
 async function loadExportedZip(presentation: Presentation) {
-  const result = await exportPresentationPptx(presentation, createDataUrlResolver({}));
+  const result = await exportPresentationPptx(presentation, createDataUrlResolver({}), {
+    fetchPublicImage: async () => SAMPLE_PNG,
+  });
   expect(result.success).toBe(true);
   if (!result.success) {
     throw new Error(result.error);

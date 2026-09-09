@@ -16,8 +16,10 @@ import {
 
 const EXPECTED_FIXED_IDS = [
   "em-pres",
+  "em-slide-00",
   "em-slide-01",
   "em-slide-02",
+  "em-slide-10",
   "em-slide-03",
   "em-slide-04",
   "em-slide-05",
@@ -32,82 +34,62 @@ const EXPECTED_SLIDES: Array<{
   contentAnchors: string[];
 }> = [
   {
-    titleAnchor:
-      "Цели, задачи и организация энергоменеджмента и энергоаудита на предприятии",
-    contentAnchors: ["239-З", "ГОСТ ISO 50001", "Республика Беларусь"],
+    titleAnchor: "Цели, задачи и организация энергоменеджмента и энергоаудита на предприятии",
+    contentAnchors: [
+      "Белорусский государственный медицинский университет",
+      "Ласица Я.В.",
+      "группа 7108",
+      "стоматологического факультета",
+    ],
   },
   {
-    titleAnchor: "Нормативно-правовой базис энергоэффективности в РБ",
+    titleAnchor: "Зачем предприятию энергоменеджмент",
+    contentAnchors: ["паспорт объекта", "4-энергосбережение"],
+  },
+  {
+    titleAnchor: "Какие документы действуют в Беларуси",
     contentAnchors: [
-      "изм. № 111-З",
+      "№ 111-З",
       "energoeffect.gov.by",
       "СТБ 1774",
-      "300 т у.т.",
-      "1 500 т у.т. (ст. 19)",
+      "Форма 4-энергосбережение",
     ],
   },
   {
-    titleAnchor: "Критерии обязательности и периодичность",
-    contentAnchors: [
-      "юрлицо в графике обязательного обследования",
-      "РОГУ, облисполкомов",
-      "экспресс-энергоаудит",
-      "предложения по прогрессивным нормам",
-    ],
+    titleAnchor: "Что нужно делать по закону",
+    contentAnchors: ["300 т у.т.", "1 500 т у.т.", "ст. 19"],
   },
   {
-    titleAnchor: "Задачи и поэтапный алгоритм энергоаудита",
-    contentAnchors: [
-      "не менее 36 мес.",
-      "сверхнормативных холостых ходов",
-      "неучтенного расхода",
-      "NPV при необходимости",
-      "энергетический паспорт объекта",
-    ],
+    titleAnchor: "Когда аудит уже не добровольный",
+    contentAnchors: ["в график обследования", "Департамент", "поверенные приборы"],
   },
   {
-    titleAnchor: "Инструментальный парк и контрольные замеры",
-    contentAnchors: [
-      "законодательной метрологии",
-      "футеровка печей",
-      "clamp-on",
-      "несимметрия",
-    ],
+    titleAnchor: "Как проводят обследование",
+    contentAnchors: ["36 месяцев", "неучтенный расход", "1 500 т у.т."],
+  },
+  {
+    titleAnchor: "Чем измеряют на обследовании",
+    contentAnchors: ["Clamp-on", "действующей поверкой"],
   },
   {
     titleAnchor: "СЭнМ по ГОСТ ISO 50001-2021",
-    contentAnchors: [
-      "Энергополитика высшего руководства",
-      "Операционное управление SEU",
-      "анализ отклонений",
-      "анализ за 3 года + приоритеты экономии",
-    ],
+    contentAnchors: ["EnB", "EnPI", "анализ за 3 года"],
   },
   {
-    titleAnchor: "Нормирование ТЭР и классификация мероприятий",
-    contentAnchors: [
-      "≥ 50 тыс. т у.т.",
-      "< 300 т у.т.",
-      "300–50 000 т у.т.",
-      "Минское городское управления",
-      "«Е-Паслуга»",
-      "отключение холостого хода",
-      "тягодутьевых механизмах",
-      "вторичных энергоресурсов",
-    ],
+    titleAnchor: "Как нормируют ТЭР и какие меры берут",
+    contentAnchors: ["1-5 лет", "50 тыс. т у.т.", "«Е-Паслуга»", "ЧРП"],
   },
   {
-    titleAnchor: "Организационная структура энергослужбы предприятия",
-    contentAnchors: ["Главный энергетик", "АСКУЭ", "АСТУЭ", "EnPI"],
+    titleAnchor: "Кто за что отвечает на предприятии",
+    contentAnchors: ["Главный энергетик", "АСКУЭ", "АСТУЭ"],
   },
   {
-    titleAnchor: "Итоговые показатели эффективности и дорожная карта",
-    contentAnchors: ["ROI", "ISO", "Месяцы 1–3", "АСКУЭ/АСТУЭ"],
+    titleAnchor: "Что считать результатом",
+    contentAnchors: ["Δq", "ISO", "ГОСТ ISO 50001-2021"],
   },
 ];
 
 const DIAGRAM_TEXT_ANCHORS = [
-  "КОНТУР УПРАВЛЕНИЯ ТЭР",
   "ИЕРАРХИЯ ТНПА",
   "ПОРОГИ ПОТРЕБЛЕНИЯ ТЭР",
   "ЭТАП 01",
@@ -172,9 +154,9 @@ describe("energyManagementPresentation seed", () => {
     expect(result.success).toBe(true);
   });
 
-  it("has exactly 9 slides in legacy order with title and content anchors", () => {
+  it("has a title slide plus content slides with title and content anchors", () => {
     const presentation = energyManagementPresentation;
-    expect(presentation.slides).toHaveLength(9);
+    expect(presentation.slides).toHaveLength(11);
 
     presentation.slides.forEach((slide, index) => {
       const expected = EXPECTED_SLIDES[index]!;
@@ -188,8 +170,8 @@ describe("energyManagementPresentation seed", () => {
 
   it("uses 16:9 aspect ratio and Russian presentation title", () => {
     expect(energyManagementPresentation.aspectRatio).toBe("16:9");
-    expect(energyManagementPresentation.title).toContain("Энергоменеджмент");
-    expect(energyManagementPresentation.title).toContain("Беларусь");
+    expect(energyManagementPresentation.title).toContain("энергоменеджмента");
+    expect(energyManagementPresentation.title).toContain("энергоаудита");
   });
 
   it("uses fixed static presentation and slide ids", () => {
@@ -218,16 +200,31 @@ describe("energyManagementPresentation seed", () => {
     }
   });
 
-  it("keeps diagram copy as editable text instead of baked images", () => {
-    energyManagementPresentation.slides.forEach((slide, index) => {
+  it("keeps diagram copy as editable text and uses photos instead of baked SVG diagrams", () => {
+    const [titleSlide, ...contentSlides] = energyManagementPresentation.slides;
+    const titleImages = titleSlide!.elements.filter((element) => element.type === "image");
+    expect(titleImages).toHaveLength(1);
+    expect(titleImages[0]?.content).toContain("assets/images/title-campus.jpg");
+
+    const deckText = energyManagementPresentation.slides
+      .map((slide) => collectTextContent(slide))
+      .join("\n");
+    for (const anchor of DIAGRAM_TEXT_ANCHORS) {
+      expect(deckText).toContain(anchor);
+    }
+
+    contentSlides.forEach((slide) => {
       const images = slide.elements.filter((element) => element.type === "image");
       const texts = slide.elements.filter((element) => element.type === "text");
       const shapes = slide.elements.filter((element) => element.type === "shape");
 
-      expect(images).toHaveLength(0);
+      expect(images.length).toBeLessThanOrEqual(1);
+      for (const image of images) {
+        expect(image.content).toMatch(/^assets\/images\/photo-/);
+        expect(image.content).not.toMatch(/slide-\d+-/);
+      }
       expect(texts.length).toBeGreaterThanOrEqual(2);
       expect(shapes.length).toBeGreaterThanOrEqual(1);
-      expect(collectTextContent(slide)).toContain(DIAGRAM_TEXT_ANCHORS[index]!);
     });
   });
 
@@ -280,8 +277,8 @@ describe("energyManagementPresentation seed", () => {
     const { energyManagementPresentation: reloaded } = await import("./energyManagement");
     expect(JSON.stringify(reloaded)).toBe(first);
     expect(reloaded.id).toBe("em-pres");
-    expect(reloaded.slides[6]!.elements.find((e) => e.id === "em-s07-norms-b")?.content).toContain(
-      "300–50 000",
+    expect(reloaded.slides[8]!.elements.find((e) => e.id === "em-s07-n2-b")?.content).toContain(
+      "50 000",
     );
   });
 });

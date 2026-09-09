@@ -29,6 +29,7 @@ const STYLE_KEYS_BY_TYPE: Record<SlideElementType, ReadonlySet<string>> = {
     "cropScale",
     "alt",
     "opacity",
+    "borderRadius",
   ]),
 };
 
@@ -228,6 +229,11 @@ export function toCssProperties(
     if (safe.shapeKind === "ellipse" || safe.shapeKind === "circle") {
       css.borderRadius = "50%";
     }
+  }
+
+  if (type === "image") {
+    css.borderRadius = appendPx(safe.borderRadius);
+    css.overflow = "hidden";
   }
 
   if (safe.opacity !== undefined) {

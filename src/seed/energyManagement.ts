@@ -7,7 +7,6 @@ import {
   pdcaWheel,
   processFlow,
   roadmap,
-  schemaDiagram,
   thresholdDiagram,
 } from "./diagrams";
 
@@ -19,6 +18,8 @@ const ACCENT_LIGHT = "#eef2ff";
 const EMERALD = "#059669";
 const EMERALD_LIGHT = "#ecfdf5";
 const BORDER = "#e2e8f0";
+const TITLE_NAVY = "#0b1d3a";
+const SLIDE_TOTAL = 11;
 
 type Anim = SlideElement["animation"];
 
@@ -57,8 +58,8 @@ function txt(
     styles: {
       fontFamily: FONT,
       color: INK,
-      fontSize: 18,
-      lineHeight: 1.35,
+      fontSize: 24,
+      lineHeight: 1.3,
       ...styles,
     },
   };
@@ -88,48 +89,62 @@ function shp(
   };
 }
 
-function headerBlock(
-  prefix: string,
-  kicker: string,
-  title: string,
-  normRef: string,
-  startZ: number,
-): SlideElement[] {
+function photo(
+  id: string,
+  src: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  z: number,
+  alt: string,
+  styles: Record<string, unknown> = {},
+): SlideElement {
+  return {
+    id,
+    type: "image",
+    x,
+    y,
+    width: w,
+    height: h,
+    rotation: 0,
+    zIndex: z,
+    content: src,
+    animation: "fade-up",
+    styles: {
+      objectFit: "cover",
+      objectPosition: "50% 50%",
+      alt,
+      borderRadius: 16,
+      ...styles,
+    },
+  };
+}
+
+function headerBlock(prefix: string, kicker: string, title: string, startZ: number): SlideElement[] {
   return [
-    txt(`${prefix}-kicker`, 80, 48, 1200, 28, kicker, startZ, {
-      fontSize: 14,
+    txt(`${prefix}-kicker`, 80, 40, 1760, 36, kicker, startZ, {
+      fontSize: 20,
       fontWeight: 600,
       color: ACCENT,
-      letterSpacing: "0.06em",
     }, "fade-up"),
-    txt(`${prefix}-title`, 80, 82, 1180, 72, title, startZ + 1, {
-      fontSize: 36,
+    txt(`${prefix}-title`, 80, 82, 1760, 70, title, startZ + 1, {
+      fontSize: 40,
       fontWeight: 700,
       lineHeight: 1.15,
-    }, "fade-up"),
-    txt(`${prefix}-norm`, 1520, 52, 320, 80, normRef, startZ + 2, {
-      fontSize: 14,
-      color: MUTED,
-      textAlign: "right",
-      lineHeight: 1.4,
     }, "fade-up"),
   ];
 }
 
-function footerBlock(
-  prefix: string,
-  left: string,
-  right: string,
-  z: number,
-): SlideElement[] {
+function footerBlock(prefix: string, left: string, n: number, z: number): SlideElement[] {
   return [
     shp(`${prefix}-foot-line`, 80, 1010, 1760, 1, z, { fill: BORDER }),
-    txt(`${prefix}-foot-l`, 80, 1020, 800, 36, left, z + 1, {
-      fontSize: 13,
+    txt(`${prefix}-foot-l`, 80, 1020, 1000, 40, left, z + 1, {
+      fontSize: 16,
       color: MUTED,
     }),
-    txt(`${prefix}-foot-r`, 1120, 1020, 720, 36, right, z + 2, {
-      fontSize: 13,
+    txt(`${prefix}-foot-r`, 1200, 1020, 640, 40, `Слайд ${n} / ${SLIDE_TOTAL}`, z + 2, {
+      fontSize: 16,
       color: MUTED,
       textAlign: "right",
     }),
@@ -147,212 +162,319 @@ function card(
 ): SlideElement {
   return shp(`${id}-bg`, x, y, w, h, z, {
     fill,
-    borderRadius: 12,
+    borderRadius: 16,
     borderColor: BORDER,
     borderWidth: 1,
   });
 }
 
-function legalItem(
-  prefix: string,
+function pointCard(
+  id: string,
+  x: number,
   y: number,
+  w: number,
   h: number,
-  label: string,
-  main: string,
-  detail: string,
   z: number,
+  title: string,
+  body: string,
+  fill = "#ffffff",
 ): SlideElement[] {
   return [
-    card(`${prefix}`, 80, y, 820, h, z, "#ffffff"),
-    txt(`${prefix}-lbl`, 96, y + 10, 120, 22, label, z + 1, {
-      fontSize: 11,
+    card(id, x, y, w, h, z, fill),
+    txt(`${id}-h`, x + 28, y + 24, w - 56, 44, title, z + 1, {
+      fontSize: 26,
       fontWeight: 700,
-      color: ACCENT,
     }, "fade-up"),
-    txt(`${prefix}-main`, 96, y + 30, 788, h - 52, main, z + 2, {
-      fontSize: 12,
+    txt(`${id}-b`, x + 28, y + 76, w - 56, h - 100, body, z + 2, {
+      fontSize: 22,
       lineHeight: 1.35,
-    }, "fade-up"),
-    txt(`${prefix}-detail`, 96, y + h - 34, 788, 28, detail, z + 3, {
-      fontSize: 11,
-      color: MUTED,
-      lineHeight: 1.3,
     }, "fade-up"),
   ];
 }
 
+function titleSlide(): Slide {
+  const p = "em-s00";
+  return {
+    id: "em-slide-00",
+    background: TITLE_NAVY,
+    transition: "fade",
+    elements: [
+      photo(
+        `${p}-bg`,
+        "assets/images/title-campus.jpg",
+        0,
+        0,
+        1920,
+        1080,
+        0,
+        "Кампус университета",
+        { borderRadius: 0 },
+      ),
+      shp(`${p}-veil`, 0, 0, 1920, 1080, 1, { fill: TITLE_NAVY, opacity: 0.32 }),
+      shp(`${p}-card`, 180, 120, 1560, 840, 2, {
+        fill: "#ffffff",
+        opacity: 0.86,
+        borderRadius: 28,
+      }),
+      txt(
+        `${p}-uni`,
+        240,
+        170,
+        1440,
+        90,
+        "Учреждение образования\n«Белорусский государственный медицинский университет»",
+        3,
+        {
+          fontSize: 24,
+          fontWeight: 600,
+          color: ACCENT,
+          textAlign: "center",
+          lineHeight: 1.35,
+        },
+        "fade-up",
+      ),
+      shp(`${p}-rule`, 860, 286, 200, 4, 4, { fill: ACCENT, borderRadius: 2 }),
+      txt(
+        `${p}-title`,
+        240,
+        320,
+        1440,
+        220,
+        "Цели, задачи и организация энергоменеджмента и энергоаудита на предприятии",
+        5,
+        {
+          fontSize: 42,
+          fontWeight: 800,
+          textAlign: "center",
+          lineHeight: 1.2,
+        },
+        "fade-up",
+      ),
+      txt(
+        `${p}-place`,
+        280,
+        560,
+        1360,
+        50,
+        "Республика Беларусь",
+        6,
+        {
+          fontSize: 26,
+          color: MUTED,
+          textAlign: "center",
+        },
+        "fade-up",
+      ),
+      txt(
+        `${p}-author`,
+        280,
+        650,
+        1360,
+        160,
+        "Подготовила: студентка\nстоматологического факультета\nЛасица Я.В., группа 7108",
+        7,
+        {
+          fontSize: 24,
+          textAlign: "center",
+          lineHeight: 1.4,
+        },
+        "fade-up",
+      ),
+      txt(`${p}-year`, 280, 860, 1360, 40, "2026", 8, {
+        fontSize: 20,
+        color: MUTED,
+        textAlign: "center",
+      }),
+    ],
+  };
+}
+
 function slide1(): Slide {
   const p = "em-s01";
-  const diagram = schemaDiagram(`${p}-dia`, { x: 1020, y: 140, w: 820, h: 720 }, 10);
   return {
     id: "em-slide-01",
     background: "#ffffff",
     transition: "fade",
     elements: [
       shp(`${p}-accent`, 0, 0, 8, 1080, 0, { fill: ACCENT }),
-      txt(`${p}-kicker`, 80, 120, 900, 32, "Аналитический доклад · производственный сектор", 1, {
-        fontSize: 15,
-        fontWeight: 600,
-        color: ACCENT,
-      }, "fade-up"),
-      txt(
-        `${p}-title`,
+      ...headerBlock(p, "Цели", "Зачем предприятию энергоменеджмент", 1),
+      ...pointCard(
+        `${p}-g1`,
         80,
-        168,
-        900,
-        200,
-        "Цели, задачи и организация энергоменеджмента и энергоаудита на предприятии",
-        2,
-        { fontSize: 40, fontWeight: 800, lineHeight: 1.12 },
-        "fade-up",
-      ),
-      txt(
-        `${p}-sub`,
-        80,
-        380,
-        880,
-        72,
-        "Практическая реализация в правовом и экономическом поле Республики Беларусь",
+        180,
+        1000,
+        230,
         3,
-        { fontSize: 20, color: MUTED, lineHeight: 1.4 },
-        "fade-up",
+        "1. Тратить меньше энергии",
+        "Снизить удельный расход ТЭР на единицу продукции и убрать лишние потери.",
+        ACCENT_LIGHT,
       ),
-      shp(`${p}-chip1-bg`, 80, 480, 260, 44, 4, { fill: ACCENT_LIGHT, borderRadius: 22 }),
-      txt(`${p}-chip1`, 96, 488, 228, 28, "СТБ / ГОСТ ISO 50001", 5, {
-        fontSize: 14,
-        fontWeight: 600,
-      }, "fade-up"),
-      shp(`${p}-chip2-bg`, 352, 480, 300, 44, 6, { fill: ACCENT_LIGHT, borderRadius: 22 }),
-      txt(`${p}-chip2`, 368, 488, 268, 28, "Закон РБ 08.01.2015 № 239-З", 7, {
-        fontSize: 14,
-        fontWeight: 600,
-      }, "fade-up"),
-      shp(`${p}-chip3-bg`, 664, 480, 320, 44, 8, { fill: ACCENT_LIGHT, borderRadius: 22 }),
-      txt(`${p}-chip3`, 680, 488, 288, 28, "Департамент по энергоэффективности", 9, {
-        fontSize: 13,
-        fontWeight: 600,
-      }, "fade-up"),
-      ...diagram.elements,
-      ...footerBlock(p, "Республика Беларусь · производственный сектор", "239-З · Госстандарт · ISO 50001", diagram.nextZ),
+      ...pointCard(
+        `${p}-g2`,
+        80,
+        430,
+        1000,
+        230,
+        6,
+        "2. Пройти энергоаудит",
+        "Получить паспорт объекта, список мер и понятную картину, куда уходит топливо и электричество.",
+      ),
+      ...pointCard(
+        `${p}-g3`,
+        80,
+        680,
+        1000,
+        230,
+        9,
+        "3. Собрать службу",
+        "Чтобы нормы, учёт и отчёт 4-энергосбережение не висели на одном человеке.",
+        EMERALD_LIGHT,
+      ),
+      photo(
+        `${p}-photo`,
+        "assets/images/photo-overview.jpg",
+        1120,
+        180,
+        720,
+        730,
+        12,
+        "Энергетическое хозяйство предприятия",
+      ),
+      ...footerBlock(p, "Цели доклада", 2, 13),
     ],
   };
 }
 
 function slide2(): Slide {
   const p = "em-s02";
-  const diagram = legalHierarchy(`${p}-dia`, { x: 940, y: 162, w: 900, h: 260 }, 19);
+  const diagram = legalHierarchy(`${p}-dia`, { x: 80, y: 700, w: 1760, h: 280 }, 15);
   return {
     id: "em-slide-02",
-    background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+    background: "#f8fafc",
     transition: "slide",
     elements: [
-      ...headerBlock(
-        p,
-        "Нормативная база",
-        "Нормативно-правовой базис энергоэффективности в РБ",
-        "Закон № 239-З\nпост. СМ РБ № 216 / № 448",
-        0,
-      ),
-      ...legalItem(
+      ...headerBlock(p, "Нормативная база", "Какие документы действуют в Беларуси", 0),
+      ...pointCard(
         `${p}-law1`,
-        162,
-        108,
-        "Закон",
-        "Закон Республики Беларусь от 08.01.2015 № 239-З «Об энергосбережении» (изм. № 111-З от 24.05.2021, № 128-З от 31.12.2025).",
-        "Ст. 10–14 — энергоаудит; ст. 16–18 — нормирование ТЭР; ст. 19 — планы энергосбережения.",
+        80,
+        180,
+        860,
+        230,
         3,
+        "Закон № 239-З",
+        "Закон «Об энергосбережении» от 08.01.2015. Правки: № 111-З (2021) и № 128-З (2025). Аудит, нормы ТЭР, планы.",
       ),
-      ...legalItem(
+      ...pointCard(
         `${p}-law2`,
-        278,
-        96,
-        "Регулятор",
-        "Департамент по энергоэффективности Государственного комитета по стандартизации РБ.",
-        "Политика, графики обследований, согласование ТЗ, надзор за нормами расхода ТЭР, energoeffect.gov.by.",
-        7,
+        980,
+        180,
+        860,
+        230,
+        6,
+        "Департамент",
+        "Департамент по энергоэффективности Госстандарта. Графики аудита, нормы, energoeffect.gov.by.",
+        ACCENT_LIGHT,
       ),
-      ...legalItem(
+      ...pointCard(
         `${p}-law3`,
-        382,
-        120,
-        "ТНПА",
-        "ГОСТ ISO 50001-2021 (с 01.06.2021, взамен СТБ ISO 50001-2013). Положение об энергоаудите — пост. СМ РБ от 18.03.2016 № 216 (изм. № 448 от 03.09.2026). СТБ 1774 — энергетический паспорт.",
-        "Примерная форма паспорта объекта обследования утверждается Советом Министров.",
-        11,
+        80,
+        430,
+        860,
+        230,
+        9,
+        "ГОСТ ISO 50001 и СТБ 1774",
+        "Система энергоменеджмента с 01.06.2021. Паспорт: СТБ 1774. Аудит: пост. Совмина № 216, правка № 448 от 03.09.2026.",
       ),
-      ...legalItem(
+      ...pointCard(
         `${p}-law4`,
-        510,
-        108,
-        "Отчёт",
-        "Форма 4-энергосбережение (Госстандарт): выполнение мероприятий по экономии ТЭР и росту местных ТЭР.",
-        "Нормирование удельных расходов — с 300 т у.т./год и/или при теплоисточнике ≥ 0,5 Гкал/ч (ст. 17).",
-        15,
+        980,
+        430,
+        860,
+        230,
+        12,
+        "Форма 4-энергосбережение",
+        "Ежегодный отчёт Госстандарту: какие меры сделали и сколько ТЭР сэкономили.",
+        EMERALD_LIGHT,
       ),
       ...diagram.elements,
-      card(`${p}-oblig`, 940, 438, 900, 280, diagram.nextZ, ACCENT_LIGHT),
-      txt(`${p}-oblig-h`, 964, 454, 852, 28, "Обязательства субъекта хозяйствования", diagram.nextZ + 1, {
-        fontSize: 18,
-        fontWeight: 700,
-      }, "fade-up"),
-      txt(
-        `${p}-oblig-1`,
-        964,
-        488,
-        852,
-        28,
-        "• Разработка и защита удельных норм расхода ТЭР.",
-        diagram.nextZ + 2,
-        { fontSize: 14, lineHeight: 1.45 },
-        "fade-up",
+      ...footerBlock(p, "Документы", 3, diagram.nextZ),
+    ],
+  };
+}
+
+function slideDuties(): Slide {
+  const p = "em-s10";
+  return {
+    id: "em-slide-10",
+    background: "#ffffff",
+    transition: "fade",
+    elements: [
+      ...headerBlock(p, "Задачи предприятия", "Что нужно делать по закону", 0),
+      ...pointCard(
+        `${p}-d1`,
+        80,
+        180,
+        1000,
+        230,
+        3,
+        "Считать нормы ТЭР",
+        "Разработать и защитить удельные нормы расхода. С 300 т у.т. в год или если есть котёл от 0,5 Гкал/ч.",
+        ACCENT_LIGHT,
       ),
-      txt(
-        `${p}-oblig-2`,
-        964,
-        518,
-        852,
-        56,
-        "• План мероприятий по энергосбережению: гос. организации от 300 т у.т.; иные юрлица — от 1 500 т у.т. (ст. 19).",
-        diagram.nextZ + 3,
-        { fontSize: 14, lineHeight: 1.45 },
-        "fade-up",
+      ...pointCard(
+        `${p}-d2`,
+        80,
+        430,
+        1000,
+        230,
+        6,
+        "Держать план энергосбережения",
+        "Госорганизации: от 300 т у.т. Остальные юрлица: от 1 500 т у.т. (ст. 19 Закона № 239-З).",
       ),
-      txt(
-        `${p}-oblig-3`,
-        964,
-        578,
-        852,
-        28,
-        "• Ежегодная статистическая отчётность по форме 4-энергосбережение.",
-        diagram.nextZ + 4,
-        { fontSize: 14, lineHeight: 1.45 },
-        "fade-up",
+      ...pointCard(
+        `${p}-d3`,
+        80,
+        680,
+        1000,
+        230,
+        9,
+        "Сдавать отчёт каждый год",
+        "Форма 4-энергосбережение: что сделали и какая экономия вышла.",
+        EMERALD_LIGHT,
       ),
-      ...footerBlock(p, "Нормативно-правовой базис", "Слайд 2 / 9", diagram.nextZ + 5),
+      photo(
+        `${p}-photo`,
+        "assets/images/photo-legal.jpg",
+        1120,
+        180,
+        720,
+        730,
+        12,
+        "Документы по энергосбережению",
+      ),
+      ...footerBlock(p, "Обязанности", 4, 13),
     ],
   };
 }
 
 function slide3(): Slide {
   const p = "em-s03";
-  const diagram = thresholdDiagram(`${p}-dia`, { x: 80, y: 330, w: 820, h: 210 }, 19);
-  const z = diagram.nextZ;
+  const diagram = thresholdDiagram(`${p}-dia`, { x: 80, y: 620, w: 1760, h: 360 }, 19);
   const kpi = (suffix: string, x: number, lbl: string, val: string, hint: string, z: number) => [
-    card(`${p}-kpi-${suffix}`, x, 162, 420, 156, z, "#ffffff"),
-    txt(`${p}-kpi-${suffix}-l`, x + 16, 174, 388, 22, lbl, z + 1, {
-      fontSize: 12,
+    card(`${p}-kpi-${suffix}`, x, 180, 420, 400, z, "#ffffff"),
+    txt(`${p}-kpi-${suffix}-l`, x + 24, 204, 372, 50, lbl, z + 1, {
+      fontSize: 20,
       color: MUTED,
       fontWeight: 600,
     }, "fade-up"),
-    txt(`${p}-kpi-${suffix}-v`, x + 16, 198, 388, 44, val, z + 2, {
-      fontSize: 34,
+    txt(`${p}-kpi-${suffix}-v`, x + 24, 270, 372, 90, val, z + 2, {
+      fontSize: 56,
       fontWeight: 800,
       color: ACCENT,
     }, "scale"),
-    txt(`${p}-kpi-${suffix}-h`, x + 16, 246, 388, 60, hint, z + 3, {
-      fontSize: 11,
-      color: MUTED,
-      lineHeight: 1.35,
+    txt(`${p}-kpi-${suffix}-h`, x + 24, 380, 372, 170, hint, z + 3, {
+      fontSize: 22,
+      lineHeight: 1.3,
     }, "fade-up"),
   ];
   return {
@@ -360,632 +482,422 @@ function slide3(): Slide {
     background: "#ffffff",
     transition: "zoom",
     elements: [
-      ...headerBlock(
-        p,
-        "Обязательный энергоаудит",
-        "Критерии обязательности и периодичность",
-        "ст. 11 Закона № 239-З\nпост. СМ РБ № 448",
-        0,
-      ),
-      ...kpi(
-        "a",
-        80,
-        "Порог обязательности",
-        "1 500",
-        "т у.т. суммарного годового потребления ТЭР и выше — юрлицо в графике обязательного обследования",
-        3,
-      ),
-      ...kpi(
-        "b",
-        520,
-        "Цикл обследования",
-        "5 лет",
-        "не реже одного раза; графики РОГУ, облисполкомов и Мингорисполкома согласовывает Департамент",
-        7,
-      ),
-      ...kpi(
-        "c",
-        960,
-        "Штат аудитора",
-        "≥ 3",
-        "аттестованных экспертов-энергоаудиторов и поверенная приборная база",
-        11,
-      ),
-      ...kpi(
-        "d",
-        1400,
-        "СЭнМ-преференция",
-        "3 г.",
-        "ГОСТ ISO 50001-2021: облегчённый отчёт — анализ эффективности ТЭР за 3 года",
-        15,
-      ),
+      ...headerBlock(p, "Обязательный энергоаудит", "Когда аудит уже не добровольный", 0),
+      ...kpi("a", 80, "Порог", "1 500", "т у.т. в год и выше: юрлицо ставят в график обследования", 3),
+      ...kpi("b", 520, "Как часто", "5 лет", "Не реже. Графики областей и Минска смотрит Департамент", 7),
+      ...kpi("c", 960, "У аудитора", "от 3", "аттестованных экспертов и поверенные приборы", 11),
+      ...kpi("d", 1400, "Если есть ISO", "3 г.", "Сертификат ГОСТ ISO 50001: короткий отчёт за 3 года", 15),
       ...diagram.elements,
-      card(`${p}-proc`, 940, 330, 900, 400, z, EMERALD_LIGHT),
-      txt(`${p}-proc-h`, 964, 346, 852, 28, "Процедурные условия (ст. 11–13)", z + 1, {
-        fontSize: 18,
-        fontWeight: 700,
-        color: EMERALD,
-      }, "fade-up"),
-      txt(
-        `${p}-proc-1`,
-        964,
-        380,
-        852,
-        48,
-        "• Основание — техническое задание, согласованное с территориальным органом Департамента.",
-        z + 2,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
-      ),
-      txt(
-        `${p}-proc-2`,
-        964,
-        430,
-        852,
-        48,
-        "• После модернизации основного технологического оборудования (≤ 3 лет) — экспресс-энергоаудит.",
-        z + 3,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
-      ),
-      txt(
-        `${p}-proc-3`,
-        964,
-        480,
-        852,
-        48,
-        "• Ниже 1 500 т у.т. — добровольно, в том числе в формате экспресс-обследования.",
-        z + 4,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
-      ),
-      txt(
-        `${p}-proc-4`,
-        964,
-        530,
-        852,
-        56,
-        "• Сертификат ГОСТ ISO 50001-2021: отчёт из трёх блоков — эффективность за 3 года, факт мероприятий, план экономии.",
-        z + 5,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
-      ),
-      txt(
-        `${p}-proc-5`,
-        964,
-        590,
-        852,
-        56,
-        "• Оплата услуги — за счёт обследуемого лица. Результат — паспорт, мероприятия, предложения по прогрессивным нормам.",
-        z + 6,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
-      ),
-      ...footerBlock(p, "Критерии обязательности", "Слайд 3 / 9", z + 7),
+      ...footerBlock(p, "Пороги", 5, diagram.nextZ),
     ],
   };
 }
 
 function slide4(): Slide {
   const p = "em-s04";
-  const diagram = processFlow(`${p}-dia`, { x: 80, y: 158, w: 1760, h: 148 }, 3);
+  const diagram = processFlow(`${p}-dia`, { x: 80, y: 170, w: 1760, h: 180 }, 3);
   const z = diagram.nextZ;
-  const stage = (n: string, x: number, title: string, body: string, z: number, emerald = false) => [
-    card(`${p}-st${n}`, x, 330, 420, 250, z, emerald ? EMERALD_LIGHT : ACCENT_LIGHT),
-    txt(`${p}-st${n}-idx`, x + 16, 342, 48, 32, n, z + 1, {
-      fontSize: 20,
-      fontWeight: 800,
-      color: emerald ? EMERALD : ACCENT,
-    }, "fade-up"),
-    txt(`${p}-st${n}-h`, x + 16, 376, 388, 28, title, z + 2, {
-      fontSize: 16,
-      fontWeight: 700,
-    }, "fade-up"),
-    txt(`${p}-st${n}-b`, x + 16, 408, 388, 160, body, z + 3, {
-      fontSize: 12,
-      lineHeight: 1.35,
-    }, "fade-up"),
-  ];
   return {
     id: "em-slide-04",
     background: "#ffffff",
     transition: "fade",
     elements: [
-      ...headerBlock(
-        p,
-        "Методика обследования",
-        "Задачи и поэтапный алгоритм энергоаудита",
-        "ст. 10 Закона № 239-З\nпотенциал · паспорт · нормы",
-        0,
-      ),
+      ...headerBlock(p, "Задачи аудита", "Как проводят обследование", 0),
       ...diagram.elements,
-      ...stage(
-        "1",
+      ...pointCard(
+        `${p}-st1`,
         80,
-        "Документарный анализ",
-        "Динамика потребления ТЭР (не менее 36 мес.), договоры энергоснабжения, тарифы, структура топливно-энергетического баланса, режимы, ремонты, данные АСКУЭ.",
+        380,
+        420,
+        300,
         z,
+        "1. Документы",
+        "Расход ТЭР за 36 месяцев, договоры, тарифы, данные АСКУЭ.",
       ),
-      ...stage(
-        "2",
+      ...pointCard(
+        `${p}-st2`,
         520,
-        "Инструментальное обследование",
-        "Замеры фактических нагрузок, расход теплоносителей, качество электроэнергии, выявление необоснованных потерь, утечек, сверхнормативных холостых ходов.",
-        z + 4,
+        380,
+        420,
+        300,
+        z + 3,
+        "2. Замеры",
+        "Нагрузки, тепло, потери, утечки, холостой ход.",
+        ACCENT_LIGHT,
       ),
-      ...stage(
-        "3",
+      ...pointCard(
+        `${p}-st3`,
         960,
-        "Энергетический баланс",
-        "Фактический баланс vs нормативный. Сведение прихода/расхода по видам ТЭР, выделение ВЭР, коммерческих и технологических потерь, неучтенного расхода.",
-        z + 8,
+        380,
+        420,
+        300,
+        z + 6,
+        "3. Баланс",
+        "Факт против нормы. Где коммерческие потери и неучтенный расход.",
       ),
-      ...stage(
-        "4",
+      ...pointCard(
+        `${p}-st4`,
         1400,
-        "ТЭО мероприятий",
-        "Пакет мер с CAPEX/OPEX, сроком окупаемости PBP, NPV при необходимости. Включение в план энергосбережения; предложения по прогрессивным нормам (ст. 14).",
-        z + 12,
-        true,
+        380,
+        440,
+        300,
+        z + 9,
+        "4. Меры",
+        "Стоимость, окупаемость, паспорт. Нормы для тех, кто от 1 500 т у.т.",
+        EMERALD_LIGHT,
       ),
-      txt(
-        `${p}-note`,
+      photo(
+        `${p}-photo`,
+        "assets/images/photo-audit.jpg",
         80,
-        596,
+        710,
         1760,
-        72,
-        "Выходные документы: отчёт об энергетическом обследовании, энергетический паспорт объекта, перечень энергосберегающих мероприятий, обоснование перехода на прогрессивные нормы расхода ТЭР (≥ 1 500 т у.т.).",
-        z + 16,
-        { fontSize: 13, color: MUTED },
-        "fade-up",
+        270,
+        z + 12,
+        "Энергоаудитор на объекте",
       ),
-      ...footerBlock(p, "Алгоритм энергоаудита", "Слайд 4 / 9", z + 17),
+      ...footerBlock(p, "Этапы аудита", 6, z + 13),
     ],
   };
 }
 
 function slide5(): Slide {
   const p = "em-s05";
-  const diagram = instrumentsRow(`${p}-dia`, { x: 80, y: 158, w: 820, h: 168 }, 3);
+  const diagram = instrumentsRow(`${p}-dia`, { x: 80, y: 170, w: 1760, h: 200 }, 3);
   const z = diagram.nextZ;
-  const tool = (code: string, x: number, title: string, body: string, z: number) => [
-    card(`${p}-tl-${code}`, x, 400, 420, 220, z, "#ffffff"),
-    txt(`${p}-tl-${code}-c`, x + 16, 412, 60, 28, code, z + 1, {
-      fontSize: 16,
-      fontWeight: 800,
-      color: ACCENT,
-    }, "fade-up"),
-    txt(`${p}-tl-${code}-h`, x + 16, 444, 388, 28, title, z + 2, {
-      fontSize: 15,
-      fontWeight: 700,
-    }, "fade-up"),
-    txt(`${p}-tl-${code}-b`, x + 16, 476, 388, 132, body, z + 3, {
-      fontSize: 12,
-      lineHeight: 1.35,
-    }, "fade-up"),
-  ];
   return {
     id: "em-slide-05",
-    background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+    background: "#f8fafc",
     transition: "slide",
     elements: [
-      ...headerBlock(
-        p,
-        "Средства измерений",
-        "Инструментальный парк и контрольные замеры",
-        "поверенный парк СИ\nне менее 3 экспертов",
-        0,
-      ),
+      ...headerBlock(p, "Приборы", "Чем измеряют на обследовании", 0),
       ...diagram.elements,
-      card(`${p}-req`, 940, 158, 900, 168, z, ACCENT_LIGHT),
-      txt(`${p}-req-h`, 964, 174, 852, 28, "Требование к аудиторской организации", z + 1, {
-        fontSize: 18,
-        fontWeight: 700,
-      }, "fade-up"),
+      ...pointCard(
+        `${p}-ir`,
+        80,
+        400,
+        420,
+        280,
+        z,
+        "Тепловизор",
+        "Стены, трубы, печи. Ищут мостики холода и дырявую изоляцию.",
+      ),
+      ...pointCard(
+        `${p}-us`,
+        520,
+        400,
+        420,
+        280,
+        z + 3,
+        "УЗ-расходомер",
+        "Clamp-on на трубе. Сверяют коммерческий учёт и факт.",
+        ACCENT_LIGHT,
+      ),
+      ...pointCard(
+        `${p}-ga`,
+        960,
+        400,
+        420,
+        280,
+        z + 6,
+        "Газоанализ",
+        "O₂, CO, температура дыма. Настраивают котёл, чтобы не жечь лишнее.",
+      ),
+      ...pointCard(
+        `${p}-pq`,
+        1400,
+        400,
+        440,
+        280,
+        z + 9,
+        "Электрика",
+        "cos φ, THD, перекос фаз. База для ЧРП и компенсации.",
+        EMERALD_LIGHT,
+      ),
       txt(
-        `${p}-req-b`,
-        964,
-        206,
-        852,
-        108,
-        "Штат ≥ 3 профильных аттестованных экспертов; средства измерений в сфере законодательной метрологии — с действующей поверкой. Протоколы замеров входят в отчёт и паспорт.",
-        z + 2,
-        { fontSize: 14, lineHeight: 1.45 },
+        `${p}-req`,
+        80,
+        710,
+        1760,
+        70,
+        "У аудиторской фирмы: от 3 экспертов и приборы с действующей поверкой. Протоколы идут в отчёт и паспорт.",
+        z + 12,
+        { fontSize: 24, lineHeight: 1.35 },
         "fade-up",
       ),
-      ...tool(
-        "IR",
+      photo(
+        `${p}-photo`,
+        "assets/images/photo-instruments.jpg",
         80,
-        "Тепловизионная съёмка",
-        "Ограждающие конструкции, теплотрассы, футеровка печей. Детекция мостиков холода, дефектов изоляции, присосов, перегрева контактных соединений.",
-        z + 3,
+        800,
+        1760,
+        180,
+        z + 13,
+        "Приборы энергетического обследования",
       ),
-      ...tool(
-        "US",
-        520,
-        "Ультразвуковая расходометрия",
-        "Безнарезной (clamp-on) учёт расхода жидкостей в тепловых и технологических сетях. Сверка коммерческого и технического учёта, поиск неучтённого расхода.",
-        z + 7,
-      ),
-      ...tool(
-        "GA",
-        960,
-        "Газоанализ котлоагрегатов",
-        "Состав уходящих дымовых газов: O₂, CO, CO₂, температура. Оптимизация коэффициента избытка воздуха α, снижение q₂ и химического недожога.",
-        z + 11,
-      ),
-      ...tool(
-        "PQ",
-        1400,
-        "Электроизмерительные комплексы",
-        "Качество электроэнергии (ГОСТ 32144), реактивная мощность, cos φ, THD, несимметрия. База для ЧРП, компенсации Q и исключения штрафных составляющих.",
-        z + 15,
-      ),
-      ...footerBlock(p, "Инструментальный парк", "Слайд 5 / 9", z + 19),
+      ...footerBlock(p, "Замеры", 7, z + 14),
     ],
   };
 }
 
 function slide6(): Slide {
   const p = "em-s06";
-  const diagram = pdcaWheel(`${p}-dia`, { x: 80, y: 158, w: 880, h: 430 }, 3);
+  const diagram = pdcaWheel(`${p}-dia`, { x: 80, y: 180, w: 720, h: 720 }, 3);
   const z = diagram.nextZ;
-  const pdca = (code: string, label: string, x: number, y: number, body: string, z: number, emerald = false) => [
-    card(`${p}-pd-${code}`, x, y, 420, 220, z, emerald ? EMERALD_LIGHT : ACCENT_LIGHT),
-    txt(`${p}-pd-${code}-h`, x + 16, y + 12, 388, 32, `${code} · ${label}`, z + 1, {
-      fontSize: 16,
-      fontWeight: 700,
-      color: emerald ? EMERALD : ACCENT,
-    }, "fade-up"),
-    txt(`${p}-pd-${code}-b`, x + 16, y + 48, 388, 156, body, z + 2, {
-      fontSize: 12,
-      lineHeight: 1.35,
-    }, "fade-up"),
-  ];
   return {
     id: "em-slide-06",
     background: "#ffffff",
     transition: "zoom",
     elements: [
-      ...headerBlock(
-        p,
-        "Система энергетического менеджмента",
-        "СЭнМ по ГОСТ ISO 50001-2021 (взамен СТБ ISO 50001)",
-        "PDCA · EnB · EnPI\nвнутренний аудит ≥ 1 / год",
-        0,
-      ),
+      ...headerBlock(p, "Организация системы", "СЭнМ по ГОСТ ISO 50001-2021", 0),
       ...diagram.elements,
-      ...pdca(
-        "Plan",
-        "Планирование",
-        1000,
-        158,
-        "Энергополитика высшего руководства. Энергетический анализ. Значимое энергоиспользование (SEU). Базовые линии EnB. Показатели результативности EnPI. Цели, задачи, планы действий.",
+      ...pointCard(
+        `${p}-plan`,
+        860,
+        180,
+        980,
+        180,
         z,
+        "Plan. Политика и цели",
+        "Энергополитика, значимое потребление, базовые линии EnB и показатели EnPI.",
+        ACCENT_LIGHT,
       ),
-      ...pdca(
-        "Do",
-        "Внедрение",
-        1420,
-        158,
-        "Регламенты эксплуатации и обслуживания энергоёмкого оборудования. Компетентность и обучение персонала. Операционное управление SEU. Закупки с учётом энергоэффективности.",
+      ...pointCard(
+        `${p}-do`,
+        860,
+        380,
+        980,
+        180,
         z + 3,
+        "Do. Как работают каждый день",
+        "Регламенты, обучение, закупки с учётом расхода энергии.",
       ),
-      ...pdca(
-        "Check",
-        "Контроль",
-        1000,
-        394,
-        "Мониторинг EnPI против EnB. Внутренний аудит СЭнМ — минимум 1 раз в год. Инструментальный мониторинг, анализ отклонений, несоответствия.",
+      ...pointCard(
+        `${p}-check`,
+        860,
+        580,
+        980,
+        180,
         z + 6,
+        "Check. Сверка раз в год",
+        "Сравнивают EnPI с базой. Внутренний аудит системы не реже раза в год.",
+        ACCENT_LIGHT,
       ),
-      ...pdca(
-        "Act",
-        "Анализ руководством",
-        1420,
-        394,
-        "Корректирующие действия. Пересмотр целей и EnPI. В РБ сертификат даёт облегчённый формат обязательного энергоаудита (анализ за 3 года + приоритеты экономии).",
+      ...pointCard(
+        `${p}-act`,
+        860,
+        780,
+        980,
+        180,
         z + 9,
-        true,
+        "Act. Разбор у руководства",
+        "Правят цели. В Беларуси сертификат даёт короткий обязательный аудит: анализ за 3 года.",
+        EMERALD_LIGHT,
       ),
-      txt(`${p}-pdca-tag`, 80, 608, 400, 24, "PDCA · цикл непрерывного улучшения", z + 12, {
-        fontSize: 13,
-        fontWeight: 600,
-        color: MUTED,
-      }, "fade-up"),
-      ...footerBlock(p, "СЭнМ ISO 50001", "Слайд 6 / 9", z + 13),
+      ...footerBlock(p, "СЭнМ", 8, z + 12),
     ],
   };
 }
 
 function slide7(): Slide {
   const p = "em-s07";
-  const diagram = paybackRow(`${p}-dia`, { x: 1020, y: 158, w: 820, h: 200 }, 9);
-  const z = diagram.nextZ;
-  const measure = (payback: string, x: number, title: string, body: string, z: number) => [
-    card(`${p}-ms-${payback}`, x, 640, 560, 180, z, "#ffffff"),
-    shp(`${p}-pb-${payback}`, x + 16, 656, 72, 32, z + 1, { fill: ACCENT, borderRadius: 8 }),
-    txt(`${p}-pb-${payback}-t`, x + 16, 662, 72, 20, payback, z + 2, {
-      fontSize: 12,
-      fontWeight: 700,
-      color: "#ffffff",
-      textAlign: "center",
-    }, "fade-up"),
-    txt(`${p}-ms-${payback}-h`, x + 100, 654, 440, 28, title, z + 3, {
-      fontSize: 16,
-      fontWeight: 700,
-    }, "fade-up"),
-    txt(`${p}-ms-${payback}-b`, x + 16, 694, 528, 112, body, z + 4, {
-      fontSize: 12,
-      lineHeight: 1.35,
-    }, "fade-up"),
-  ];
+  const diagram = paybackRow(`${p}-dia`, { x: 80, y: 700, w: 1760, h: 270 }, 20);
   return {
     id: "em-slide-07",
     background: "#ffffff",
     transition: "none",
     elements: [
-      ...headerBlock(
-        p,
-        "Нормы ТЭР и портфель мер",
-        "Нормирование ТЭР и классификация мероприятий",
-        "ст. 16–18 Закона № 239-З\nЕ-Паслуга · пост. № 448",
-        0,
+      ...headerBlock(p, "Нормы и меры", "Как нормируют ТЭР и какие меры берут", 0),
+      ...pointCard(
+        `${p}-n1`,
+        80,
+        180,
+        860,
+        230,
+        3,
+        "Текущие и прогрессивные",
+        "Текущие нормы: до 1 года. Прогрессивные: ряд на 1-5 лет, если потребление от 1 500 т у.т.",
+        ACCENT_LIGHT,
       ),
-      card(`${p}-norms`, 80, 158, 900, 340, 3, ACCENT_LIGHT),
-      txt(`${p}-norms-h`, 104, 172, 852, 28, "Расчёт и защита удельных норм", 4, {
-        fontSize: 18,
-        fontWeight: 700,
-      }, "fade-up"),
-      txt(
-        `${p}-norms-1`,
-        104,
-        206,
-        852,
-        28,
-        "• Текущие нормы — на период до 1 года.",
-        5,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
-      ),
-      txt(
-        `${p}-norms-2`,
-        104,
-        236,
-        852,
-        48,
-        "• Прогрессивные нормы — ряд на 1–5 лет для потребителей ≥ 1 500 т у.т., в том числе по результатам энергоаудита.",
+      ...pointCard(
+        `${p}-n2`,
+        980,
+        180,
+        860,
+        230,
         6,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
+        "Кто утверждает с 2026",
+        "От 50 тыс. т у.т. и мелкие с котлом от 0,5 Гкал/ч: Департамент. От 300 до 50 000: области и Минск. Подача через «Е-Паслуга».",
       ),
-      txt(
-        `${p}-norms-b`,
-        104,
-        288,
-        852,
-        96,
-        "• С 2026 г.: Департамент устанавливает нормы для ≥ 50 тыс. т у.т. и для < 300 т у.т. с теплоисточником ≥ 0,5 Гкал/ч (единые нормы — публикация до 1 ноября). Диапазон 300–50 000 т у.т. — областные и Минское городское управления по надзору.",
-        7,
-        { fontSize: 12, lineHeight: 1.4 },
-        "fade-up",
+      ...pointCard(
+        `${p}-m1`,
+        80,
+        430,
+        560,
+        240,
+        9,
+        "До 1 года",
+        "Утечки воздуха, холостой ход, наладка котла. Дешёвые меры.",
+        EMERALD_LIGHT,
       ),
-      txt(
-        `${p}-norms-4`,
-        104,
-        388,
-        852,
-        28,
-        "• Подача — в электронном виде через портал «Е-Паслуга».",
-        8,
-        { fontSize: 13, lineHeight: 1.4 },
-        "fade-up",
+      ...pointCard(
+        `${p}-m2`,
+        660,
+        430,
+        560,
+        240,
+        12,
+        "1-3 года",
+        "ЧРП, автоматика ИТП, свет, изоляция труб.",
+      ),
+      ...pointCard(
+        `${p}-m3`,
+        1240,
+        430,
+        600,
+        240,
+        15,
+        "3-5 лет",
+        "Когенерация, тепло уходящих газов, крупные ВЭР.",
+        ACCENT_LIGHT,
       ),
       ...diagram.elements,
-      ...measure(
-        "≤ 1 г.",
-        80,
-        "Беззатратные / низкозатратные",
-        "Уплотнение контуров, оптимизация графиков пуска, исключение утечек сжатого воздуха, отключение холостого хода, гидравлическая наладка, режимная наладка котлов (α).",
-        z,
-      ),
-      ...measure(
-        "1–3 г.",
-        680,
-        "Среднезатратные",
-        "ЧРП на насосах и тягодутьевых механизмах, автоматизация ИТП, компенсация реактивной мощности, замена освещения и теплоизоляции трубопроводов.",
-        z + 5,
-      ),
-      ...measure(
-        "3–5 л.",
-        1280,
-        "CAPEX / ВЭР",
-        "Когенерация, утилизация вторичных энергоресурсов, рекуперация тепла уходящих газов и стоков, модернизация теплогенерирующих установок.",
-        z + 10,
-      ),
-      ...footerBlock(p, "Нормирование и мероприятия", "Слайд 7 / 9", z + 15),
+      ...footerBlock(p, "Нормы и меры", 9, diagram.nextZ),
     ],
   };
 }
 
 function slide8(): Slide {
   const p = "em-s08";
-  const diagram = orgChart(`${p}-dia`, { x: 80, y: 158, w: 820, h: 280 }, 3);
+  const diagram = orgChart(`${p}-dia`, { x: 80, y: 180, w: 900, h: 500 }, 3);
   const z = diagram.nextZ;
-  const role = (suffix: string, y: number, title: string, body: string, z: number, accent = false) => [
-    card(`${p}-role-${suffix}`, 940, y, 900, 130, z, accent ? ACCENT_LIGHT : "#ffffff"),
-    txt(`${p}-role-${suffix}-h`, 964, y + 14, 852, 28, title, z + 1, {
-      fontSize: 17,
-      fontWeight: 700,
-    }, "fade-up"),
-    txt(`${p}-role-${suffix}-b`, 964, y + 46, 852, 72, body, z + 2, {
-      fontSize: 13,
-      lineHeight: 1.35,
-    }, "fade-up"),
-  ];
   return {
     id: "em-slide-08",
-    background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+    background: "#f8fafc",
     transition: "fade",
     elements: [
-      ...headerBlock(
-        p,
-        "Институт ответственности",
-        "Организационная структура энергослужбы предприятия",
-        "СЭнМ · АСКУЭ · АСТУЭ\nкросс-функциональный контур",
-        0,
-      ),
+      ...headerBlock(p, "Организация", "Кто за что отвечает на предприятии", 0),
       ...diagram.elements,
-      ...role(
-        "chief",
-        158,
-        "Главный энергетик / энергоменеджер",
-        "Оперативное управление энергохозяйством, контроль лимитов и удельных норм, координация СЭнМ, взаимодействие с Департаментом, ведение EnPI/EnB, подготовка 4-энергосбережение.",
-        z,
-        true,
-      ),
-      ...role(
-        "comm",
-        304,
-        "Энергетическая комиссия",
-        "Кросс-функциональная группа: главный технолог (нормы на единицу продукции), главный механик (состояние оборудования), финансово-экономический блок (CAPEX, PBP, включение в инвестпрограмму). Утверждение приоритетов SEU.",
-        z + 3,
-      ),
-      ...role(
-        "auto",
-        450,
-        "Автоматизация учёта",
-        "АСКУЭ — автоматизированная система контроля и учёта электроэнергии. АСТУЭ — автоматизированная система технического учёта энергоресурсов (тепло, пар, газ, сжатый воздух). Телеметрия в реальном времени как источник EnPI и доказательная база аудита.",
-        z + 6,
-      ),
-      txt(
-        `${p}-cross`,
-        80,
-        462,
+      ...pointCard(
+        `${p}-chief`,
+        1020,
+        180,
         820,
-        40,
-        "Кросс-функциональный контур: производство · финансы · эксплуатация · IT",
-        z + 9,
-        { fontSize: 13, color: MUTED },
-        "fade-up",
+        200,
+        z,
+        "Главный энергетик",
+        "Лимиты, нормы, СЭнМ, связь с Департаментом, форма 4-энергосбережение.",
+        ACCENT_LIGHT,
       ),
-      ...footerBlock(p, "Энергослужба предприятия", "Слайд 8 / 9", z + 10),
+      ...pointCard(
+        `${p}-comm`,
+        1020,
+        400,
+        820,
+        200,
+        z + 3,
+        "Энергетическая комиссия",
+        "Технолог (нормы на изделие), механик (оборудование), финансист (деньги и окупаемость).",
+      ),
+      ...pointCard(
+        `${p}-auto`,
+        1020,
+        620,
+        820,
+        200,
+        z + 6,
+        "АСКУЭ и АСТУЭ",
+        "АСКУЭ считает электричество. АСТУЭ: тепло, пар, газ, сжатый воздух.",
+        EMERALD_LIGHT,
+      ),
+      photo(
+        `${p}-photo`,
+        "assets/images/photo-org.jpg",
+        80,
+        710,
+        900,
+        260,
+        z + 9,
+        "Команда энергослужбы",
+      ),
+      ...footerBlock(p, "Служба", 10, z + 10),
     ],
   };
 }
 
 function slide9(): Slide {
   const p = "em-s09";
-  const diagram = roadmap(`${p}-dia`, { x: 80, y: 314, w: 1760, h: 132 }, 15);
+  const diagram = roadmap(`${p}-dia`, { x: 80, y: 180, w: 1760, h: 200 }, 3);
   const z = diagram.nextZ;
-  const kpi = (suffix: string, x: number, lbl: string, val: string, hint: string, z: number) => [
-    card(`${p}-k-${suffix}`, x, 158, 560, 140, z, "#ffffff"),
-    txt(`${p}-k-${suffix}-l`, x + 16, 170, 528, 22, lbl, z + 1, {
-      fontSize: 12,
-      color: MUTED,
-      fontWeight: 600,
-    }, "fade-up"),
-    txt(`${p}-k-${suffix}-v`, x + 16, 196, 528, 40, val, z + 2, {
-      fontSize: 30,
-      fontWeight: 800,
-      color: ACCENT,
-    }, "scale"),
-    txt(`${p}-k-${suffix}-h`, x + 16, 240, 528, 48, hint, z + 3, {
-      fontSize: 11,
-      color: MUTED,
-      lineHeight: 1.35,
-    }, "fade-up"),
-  ];
-  const phase = (mo: string, x: number, title: string, body: string, z: number, emerald = false) => [
-    card(`${p}-ph-${mo}`, x, 520, 420, 180, z, emerald ? EMERALD_LIGHT : ACCENT_LIGHT),
-    txt(`${p}-ph-${mo}-m`, x + 16, 532, 388, 22, `Месяцы ${mo}`, z + 1, {
-      fontSize: 12,
-      fontWeight: 700,
-      color: emerald ? EMERALD : ACCENT,
-    }, "fade-up"),
-    txt(`${p}-ph-${mo}-h`, x + 16, 558, 388, 28, title, z + 2, {
-      fontSize: 16,
-      fontWeight: 700,
-    }, "fade-up"),
-    txt(`${p}-ph-${mo}-b`, x + 16, 590, 388, 96, body, z + 3, {
-      fontSize: 12,
-      lineHeight: 1.35,
-    }, "fade-up"),
-  ];
   return {
     id: "em-slide-09",
     background: "#ffffff",
     transition: "slide",
     elements: [
-      ...headerBlock(
-        p,
-        "Результативность · 12 месяцев",
-        "Итоговые показатели эффективности и дорожная карта",
-        "уд. расход ТЭР · ROI\nаудит → СЭнМ → учёт",
-        0,
-      ),
-      ...kpi(
-        "dq",
-        80,
-        "Ключевые KPI",
-        "Δq",
-        "Снижение удельного расхода ТЭР на единицу продукции, %/год. Соблюдение установленных текущих и прогрессивных норм. Доля ВЭР и местных ТЭР.",
-        3,
-      ),
-      ...kpi(
-        "roi",
-        680,
-        "Финансовый результат",
-        "ROI",
-        "Снижение доли энергозатрат в себестоимости. PBP портфеля мер. NPV CAPEX-проектов 3–5 лет. Исключение сверхнормативного потребления.",
-        7,
-      ),
-      ...kpi(
-        "iso",
-        1280,
-        "Институциональный эффект",
-        "ISO",
-        "Сертификация ГОСТ ISO 50001-2021 → облегчённый энергоаудит. Готовность паспорта и плана мероприятий к включению в госпрограммы.",
-        11,
-      ),
+      ...headerBlock(p, "Год работы", "Что считать результатом", 0),
       ...diagram.elements,
-      ...phase(
-        "1–3",
+      ...pointCard(
+        `${p}-dq`,
         80,
-        "Энергоаудит",
-        "ТЗ, согласование с территориальным органом, документарный и инструментальный этапы, баланс, паспорт.",
+        420,
+        560,
+        250,
         z,
+        "Δq",
+        "Удельный расход ТЭР на изделие падает. Нормы держатся.",
+        ACCENT_LIGHT,
       ),
-      ...phase(
-        "4–7",
-        520,
-        "Внедрение рекомендаций",
-        "Quick wins (PBP ≤ 1 года), запуск ЧРП/ИТП, фиксация экономии в форме 4-энергосбережение.",
-        z + 4,
+      ...pointCard(
+        `${p}-roi`,
+        660,
+        420,
+        560,
+        250,
+        z + 3,
+        "Деньги",
+        "Доля энергии в себестоимости меньше. Меры окупаются.",
       ),
-      ...phase(
-        "8–10",
-        960,
-        "Сертификация СЭнМ",
-        "Энергополитика, EnB/EnPI, внутренний аудит, анализ руководством, орган по сертификации ГОСТ ISO 50001.",
-        z + 8,
+      ...pointCard(
+        `${p}-iso`,
+        1240,
+        420,
+        600,
+        250,
+        z + 6,
+        "ISO",
+        "Сертификат ГОСТ ISO 50001-2021. Короткий аудит и готовый паспорт.",
+        EMERALD_LIGHT,
       ),
-      ...phase(
-        "11–12",
-        1400,
-        "Автоматизация учёта",
-        "АСКУЭ/АСТУЭ, дашборд EnPI, постановка мониторинга отклонений от норм расхода ТЭР.",
-        z + 12,
-        true,
+      photo(
+        `${p}-photo`,
+        "assets/images/photo-roadmap.jpg",
+        80,
+        700,
+        1760,
+        280,
+        z + 9,
+        "Предприятие после года работы",
       ),
-      ...footerBlock(p, "KPI и дорожная карта", "Слайд 9 / 9", z + 16),
+      ...footerBlock(p, "Итог года", 11, z + 10),
     ],
   };
 }
 
 export const energyManagementPresentation: Presentation = {
   id: "em-pres",
-  title: "Энергоменеджмент и энергоаудит на предприятии · Республика Беларусь",
+  title: "Цели, задачи и организация энергоменеджмента и энергоаудита на предприятии",
   aspectRatio: "16:9",
-  slides: [slide1(), slide2(), slide3(), slide4(), slide5(), slide6(), slide7(), slide8(), slide9()],
+  slides: [
+    titleSlide(),
+    slide1(),
+    slide2(),
+    slideDuties(),
+    slide3(),
+    slide4(),
+    slide5(),
+    slide6(),
+    slide7(),
+    slide8(),
+    slide9(),
+  ],
 };

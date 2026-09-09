@@ -131,6 +131,7 @@ export function SlideElementView({
         {...sharedProps}
         style={{
           ...frameStyle,
+          ...toCssProperties("image", resolved.styles),
           overflow: "hidden",
           padding: 0,
           border: "none",

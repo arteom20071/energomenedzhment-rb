@@ -65,7 +65,7 @@ function rh(frame: MappedFrame, value: number): number {
 }
 
 function rf(frame: MappedFrame, value: number): number {
-  return Math.max(10, Math.round(value * (frame.h / frame.vh)));
+  return Math.max(14, Math.round(value * (frame.h / frame.vh)));
 }
 
 function roundBox(x: number, y: number, w: number, h: number) {
@@ -231,7 +231,7 @@ export function schemaDiagram(prefix: string, box: DiagramFrame, zStart: number)
   d.label("askue-h", 76, 404, 560, 16, "АСКУЭ / АСТУЭ  →  нормы ТЭР  →  форма 4-энергосбережение", {
     fontWeight: 700,
   });
-  d.label("askue-s", 76, 432, 560, 13, "Телеметрия нагрузок · удельные расходы · прогрессивные нормы 1–5 лет", {
+  d.label("askue-s", 76, 432, 560, 13, "Телеметрия нагрузок · удельные расходы · прогрессивные нормы 1-5 лет", {
     color: SLATE,
   });
   d.rect("goal", 56, 476, 186, 72, { fill: SKY_LIGHT, borderRadius: 10 });
@@ -284,7 +284,7 @@ export function thresholdDiagram(prefix: string, box: DiagramFrame, zStart: numb
   d.label("c1-d", 40, 168, 150, 12, "Аудит добровольный", { color: MUTED });
   d.rect("c2", 220, 56, 196, 140, { fill: WHITE, borderColor: BORDER, borderWidth: 1, borderRadius: 12 });
   d.rect("c2-bar", 220, 56, 6, 140, { fill: SKY });
-  d.label("c2-a", 242, 88, 160, 12, "300 – 1 499 т у.т.", { fontWeight: 700, color: SKY });
+  d.label("c2-a", 242, 88, 160, 12, "300-1 499 т у.т.", { fontWeight: 700, color: SKY });
   d.label("c2-b", 242, 118, 160, 14, "Нормирование ТЭР", { fontWeight: 700 });
   d.label("c2-c", 242, 138, 160, 14, "форма 4-энергосбережение", { fontWeight: 700 });
   d.label("c2-d", 242, 168, 160, 12, "Аудит — по решению / ТЗ", { color: MUTED });
@@ -375,12 +375,12 @@ export function paybackRow(prefix: string, box: DiagramFrame, zStart: number): D
   d.label("a-h", 40, 116, 150, 14, "OPEX / zero-cost", { fontWeight: 700 });
   d.label("a-s", 40, 140, 150, 12, "утечки · графики · уплотнения", { color: MUTED });
   d.rect("b", 224, 52, 184, 124, { fill: WHITE, borderColor: BORDER, borderWidth: 1, borderRadius: 12 });
-  d.label("b-n", 240, 84, 80, 28, "1–3", { fontWeight: 800, color: SKY });
+  d.label("b-n", 240, 84, 80, 28, "1-3", { fontWeight: 800, color: SKY });
   d.label("b-u", 320, 84, 70, 13, "года", { fontWeight: 700, color: MUTED });
   d.label("b-h", 240, 116, 150, 14, "ЧРП · АСУ ИТП", { fontWeight: 700 });
   d.label("b-s", 240, 140, 150, 12, "среднезатратный CAPEX", { color: MUTED });
   d.rect("c", 424, 52, 192, 124, { fill: WHITE, borderColor: BORDER, borderWidth: 1, borderRadius: 12 });
-  d.label("c-n", 440, 84, 80, 28, "3–5", { fontWeight: 800 });
+  d.label("c-n", 440, 84, 80, 28, "3-5", { fontWeight: 800 });
   d.label("c-u", 530, 84, 70, 13, "лет", { fontWeight: 700, color: MUTED });
   d.label("c-h", 440, 116, 160, 14, "ВЭР · когенерация", { fontWeight: 700 });
   d.label("c-s", 440, 140, 160, 12, "рекуперация · CAPEX", { color: MUTED });
@@ -422,10 +422,10 @@ export function roadmap(prefix: string, box: DiagramFrame, zStart: number): Diag
   const d = collect(prefix, frame, zStart);
   d.rect("line", 40, 38, 1020, 4, { fill: SKY, borderRadius: 2 });
   const points = [
-    { x: 70, m: "М1–М3", t: "Энергоаудит", s: "баланс · паспорт", color: SKY },
-    { x: 340, m: "М4–М7", t: "Внедрение мер", s: "quick wins + ЧРП", color: SKY },
-    { x: 620, m: "М8–М10", t: "Сертификация СЭнМ", s: "ГОСТ ISO 50001", color: SKY_DARK },
-    { x: 900, m: "М11–М12", t: "АСКУЭ / АСТУЭ", s: "EnPI в реальном времени", color: GREEN },
+    { x: 70, m: "М1-М3", t: "Энергоаудит", s: "баланс · паспорт", color: SKY },
+    { x: 340, m: "М4-М7", t: "Внедрение мер", s: "быстрые меры + ЧРП", color: SKY },
+    { x: 620, m: "М8-М10", t: "Сертификация СЭнМ", s: "ГОСТ ISO 50001", color: SKY_DARK },
+    { x: 900, m: "М11-М12", t: "АСКУЭ / АСТУЭ", s: "EnPI в реальном времени", color: GREEN },
   ] as const;
   points.forEach((point, index) => {
     d.rect(`dot${index}`, point.x - 10, 30, 20, 20, {

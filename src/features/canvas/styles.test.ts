@@ -81,6 +81,16 @@ describe("sanitizeElementStyles", () => {
     expect(css.transformOrigin).toBe("30% 70%");
   });
 
+  it("maps image wrapper opacity and rounding", () => {
+    const css = toCssProperties("image", {
+      opacity: 0.4,
+      borderRadius: 16,
+    });
+    expect(css.opacity).toBe(0.4);
+    expect(css.borderRadius).toBe("16px");
+    expect(css.overflow).toBe("hidden");
+  });
+
   it("maps ellipse shapes to a circular border radius", () => {
     const css = toCssProperties("shape", {
       fill: "#0284c7",

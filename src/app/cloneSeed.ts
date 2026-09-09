@@ -21,6 +21,19 @@ export function hasLegacySeedDiagramImages(presentation: Presentation): boolean 
   );
 }
 
+export function shouldReplaceEnergySeedDraft(presentation: Presentation): boolean {
+  if (presentation.id !== "em-pres") {
+    return false;
+  }
+
+  if (hasLegacySeedDiagramImages(presentation)) {
+    return true;
+  }
+
+  const slideIds = new Set(presentation.slides.map((slide) => slide.id));
+  return !slideIds.has("em-slide-00") || !slideIds.has("em-slide-10");
+}
+
 export function cloneSeedPresentation(baseUrl = "/"): Presentation {
   const source = structuredClone(energyManagementPresentation);
   return {
