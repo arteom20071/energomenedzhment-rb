@@ -1,10 +1,15 @@
 import { Trash2 } from "lucide-react";
 import { useRef, type DragEvent, type Ref } from "react";
 
+import type { Slide } from "../../domain/presentation";
+import { CANVAS_WIDTH } from "../../domain/presentation";
+import { SlideRenderer } from "../canvas/SlideRenderer";
+
+const THUMBNAIL_WIDTH = 144;
+
 interface SlideThumbnailProps {
   index: number;
-  slideId: string;
-  background: string;
+  slide: Slide;
   isActive: boolean;
   tabIndex: number;
   tabRef?: Ref<HTMLButtonElement>;
@@ -17,9 +22,7 @@ interface SlideThumbnailProps {
   onDragEnd: () => void;
 }
 
-function isFocusWithinThumbnail(
-  thumbnailElement: HTMLElement | null,
-): boolean {
+function isFocusWithinThumbnail(thumbnailElement: HTMLElement | null): boolean {
   const activeElement = document.activeElement;
   if (!(activeElement instanceof HTMLElement) || !thumbnailElement) {
     return false;
@@ -30,8 +33,7 @@ function isFocusWithinThumbnail(
 
 export function SlideThumbnail({
   index,
-  slideId,
-  background,
+  slide,
   isActive,
   tabIndex,
   tabRef,
@@ -45,9 +47,10 @@ export function SlideThumbnail({
 }: SlideThumbnailProps) {
   const thumbnailRef = useRef<HTMLDivElement>(null);
   const label = `Слайд ${index + 1}`;
+  const previewScale = THUMBNAIL_WIDTH / CANVAS_WIDTH;
 
   const handleDeleteClick = () => {
-    onDelete(slideId, isFocusWithinThumbnail(thumbnailRef.current));
+    onDelete(slide.id, isFocusWithinThumbnail(thumbnailRef.current));
   };
 
   return (
@@ -63,7 +66,7 @@ export function SlideThumbnail({
         draggable
         data-slide-index={index}
         onFocus={onFocus}
-        onClick={() => onSelect(slideId)}
+        onClick={() => onSelect(slide.id)}
         onDragStart={() => onDragStart(index)}
         onDragOver={onDragOver}
         onDrop={(event) => {
@@ -79,9 +82,11 @@ export function SlideThumbnail({
       >
         <div
           aria-hidden="true"
-          className="h-14 w-24 overflow-hidden rounded"
-          style={{ backgroundColor: background }}
-        />
+          data-testid={`slide-preview-${slide.id}`}
+          className="pointer-events-none h-[81px] w-36 overflow-hidden rounded bg-white"
+        >
+          <SlideRenderer slide={slide} scale={previewScale} interactive={false} />
+        </div>
         <span className="mt-1 block text-center text-[10px] text-slate-400">{index + 1}</span>
       </button>
       <button
@@ -89,7 +94,7 @@ export function SlideThumbnail({
         aria-label={`Удалить ${label.toLowerCase()}`}
         title={`Удалить ${label.toLowerCase()}`}
         onClick={handleDeleteClick}
-        className="absolute right-0 top-0 rounded-md bg-slate-900/90 p-1 text-rose-400 opacity-100 transition hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100"
+        className="absolute right-0 top-0 min-h-11 min-w-11 rounded-md bg-slate-900/90 p-1 text-rose-400 opacity-100 transition hover:text-rose-300 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 lg:min-h-0 lg:min-w-0 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100"
       >
         <Trash2 aria-hidden="true" size={14} />
       </button>

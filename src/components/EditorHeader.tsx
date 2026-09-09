@@ -28,6 +28,7 @@ interface EditorHeaderProps {
   onExportJson?: () => void;
   onExportPng?: () => void;
   onExportHtml?: () => void;
+  onExportPptx?: () => void;
   onOpenShortcuts: () => void;
   shortcutsTriggerRef?: RefObject<HTMLButtonElement | null>;
 }
@@ -47,6 +48,7 @@ export function EditorHeader({
   onExportJson,
   onExportPng,
   onExportHtml,
+  onExportPptx,
   onOpenShortcuts,
   shortcutsTriggerRef,
 }: EditorHeaderProps) {
@@ -81,7 +83,7 @@ export function EditorHeader({
   return (
     <header
       aria-label="Панель редактора"
-      className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-slate-800 bg-slate-900 px-4"
+      className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-900 px-2 pt-[max(0px,env(safe-area-inset-top))] sm:px-4"
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div
@@ -102,7 +104,7 @@ export function EditorHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <IconButton label="Отменить" onClick={onUndo} disabled={!canUndo}>
           <Undo2 aria-hidden="true" size={18} />
         </IconButton>
@@ -184,6 +186,17 @@ export function EditorHeader({
                 }}
               >
                 HTML
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                onClick={() => {
+                  onExportPptx?.();
+                  setExportOpen(false);
+                }}
+              >
+                PowerPoint
               </button>
             </div>
           ) : null}

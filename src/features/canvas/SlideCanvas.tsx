@@ -429,7 +429,7 @@ export function SlideCanvas({
     <div
       ref={setContainer}
       data-testid="slide-canvas-root"
-      className="relative select-none"
+      className="relative touch-none select-none"
       onPointerDown={(event) => {
         if (event.target === container || event.target === event.currentTarget) {
           onClearSelection();
@@ -477,11 +477,13 @@ export function SlideCanvas({
             ref={moveableRef}
             target={moveableTargets}
             container={container}
+            rootContainer={container}
             origin={false}
             draggable
             resizable
             rotatable
             snappable={false}
+            useResizeObserver
             zoom={effectiveScale}
             rotationPosition="top"
             renderDirections={["nw", "n", "ne", "w", "e", "sw", "s", "se"]}

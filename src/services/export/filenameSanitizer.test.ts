@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { sanitizeExportBasename, sanitizeHtmlFilename, sanitizeJsonFilename } from "./filenameSanitizer";
+import {
+  sanitizeExportBasename,
+  sanitizeHtmlFilename,
+  sanitizeJsonFilename,
+  sanitizePptxFilename,
+} from "./filenameSanitizer";
 
 describe("filenameSanitizer", () => {
   it("handles Windows reserved names", () => {
@@ -28,8 +33,9 @@ describe("filenameSanitizer", () => {
     expect(truncated).toBe("A📊B");
   });
 
-  it("builds json and html filenames", () => {
+  it("builds json, html, and pptx filenames", () => {
     expect(sanitizeJsonFilename("Deck")).toBe("Deck.presentation.json");
     expect(sanitizeHtmlFilename("Deck")).toBe("Deck.html");
+    expect(sanitizePptxFilename("Deck")).toBe("Deck.pptx");
   });
 });

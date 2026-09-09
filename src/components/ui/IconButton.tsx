@@ -28,7 +28,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       title={tooltip ?? label}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-md p-2 text-slate-300 transition hover:bg-slate-800 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+      className={`min-h-11 min-w-11 rounded-md p-2 text-slate-300 transition hover:bg-slate-800 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-8 sm:min-w-8 ${className}`}
     >
       {children}
     </button>

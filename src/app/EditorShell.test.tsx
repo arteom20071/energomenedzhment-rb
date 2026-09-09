@@ -211,9 +211,14 @@ describe("EditorShell", () => {
     expect(onTransitionChange).toHaveBeenCalledWith("zoom");
   });
 
-  it("shows unsupported layout notice below 1024px breakpoint", () => {
+  it("keeps the editor usable in a compact device layout", () => {
     renderShell({ forceMobileLayout: true });
 
-    expect(screen.getByText("Требуется рабочая область для настольного ПК")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Рабочая область" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Инструменты" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Свойства" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Требуется рабочая область для настольного ПК"),
+    ).not.toBeInTheDocument();
   });
 });

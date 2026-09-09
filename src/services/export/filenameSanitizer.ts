@@ -63,3 +63,7 @@ export function sanitizeJsonFilename(title: string): string {
 export function sanitizeHtmlFilename(title: string): string {
   return `${sanitizeExportBasename(title)}.html`;
 }
+
+export function sanitizePptxFilename(title: string): string {
+  return `${sanitizeExportBasename(title)}.pptx`;
+}
