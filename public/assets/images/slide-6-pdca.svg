@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" fill="none">
+  <rect width="420" height="420" rx="20" fill="#F8FAFC"/>
+  <circle cx="210" cy="210" r="128" stroke="#E2E8F0" stroke-width="28"/>
+  <circle cx="210" cy="210" r="128" stroke="#0284C7" stroke-width="28" stroke-dasharray="201 603" transform="rotate(-90 210 210)"/>
+  <circle cx="210" cy="210" r="128" stroke="#0369A1" stroke-width="28" stroke-dasharray="201 603" transform="rotate(0 210 210)"/>
+  <circle cx="210" cy="210" r="128" stroke="#0E7490" stroke-width="28" stroke-dasharray="201 603" transform="rotate(90 210 210)"/>
+  <circle cx="210" cy="210" r="128" stroke="#059669" stroke-width="28" stroke-dasharray="201 603" transform="rotate(180 210 210)"/>
+  <circle cx="210" cy="210" r="72" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="210" y="204" text-anchor="middle" fill="#0F172A" font-family="Inter, sans-serif" font-size="20" font-weight="800">PDCA</text>
+  <text x="210" y="228" text-anchor="middle" fill="#64748B" font-family="Inter, sans-serif" font-size="12">ISO 50001</text>
+  <text x="210" y="58" text-anchor="middle" fill="#0284C7" font-family="Inter, sans-serif" font-size="16" font-weight="800">PLAN</text>
+  <text x="348" y="216" text-anchor="middle" fill="#0369A1" font-family="Inter, sans-serif" font-size="16" font-weight="800">DO</text>
+  <text x="210" y="372" text-anchor="middle" fill="#059669" font-family="Inter, sans-serif" font-size="16" font-weight="800">ACT</text>
+  <text x="72" y="216" text-anchor="middle" fill="#0E7490" font-family="Inter, sans-serif" font-size="16" font-weight="800">CHECK</text>
+</svg>

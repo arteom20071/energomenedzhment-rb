@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 150" fill="none">
+  <rect x="0" y="24" width="248" height="102" rx="12" fill="#0284C7"/>
+  <text x="20" y="58" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">ЭТАП 01</text>
+  <text x="20" y="86" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="18" font-weight="700" text-anchor="start">Документарный</text>
+  <text x="20" y="108" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">баланс · договоры · динамика</text>
+  <polygon points="248,50 268,75 248,100" fill="#0284C7"/>
+  <rect x="278" y="24" width="248" height="102" rx="12" fill="#0369A1"/>
+  <text x="298" y="58" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">ЭТАП 02</text>
+  <text x="298" y="86" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="18" font-weight="700" text-anchor="start">Инструментальный</text>
+  <text x="298" y="108" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">нагрузки · потери · cos φ</text>
+  <polygon points="526,50 546,75 526,100" fill="#0369A1"/>
+  <rect x="556" y="24" width="248" height="102" rx="12" fill="#0E7490"/>
+  <text x="576" y="58" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">ЭТАП 03</text>
+  <text x="576" y="86" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="18" font-weight="700" text-anchor="start">Энергобаланс</text>
+  <text x="576" y="108" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">факт vs нормативный</text>
+  <polygon points="804,50 824,75 804,100" fill="#0E7490"/>
+  <rect x="834" y="24" width="248" height="102" rx="12" fill="#059669"/>
+  <text x="854" y="58" fill="#D1FAE5" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">ЭТАП 04</text>
+  <text x="854" y="86" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="18" font-weight="700" text-anchor="start">ТЭО мероприятий</text>
+  <text x="854" y="108" fill="#D1FAE5" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">CAPEX / OPEX · PBP</text>
+</svg>

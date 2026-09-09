@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 280" fill="none">
+  <text x="0" y="22" fill="#0284C7" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="2">ИЕРАРХИЯ ТНПА</text>
+  <rect x="0" y="40" width="640" height="48" rx="10" fill="#0284C7"/>
+  <text x="20" y="70" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="15" font-weight="700" text-anchor="start">Закон РБ 08.01.2015 № 239-З «Об энергосбережении»</text>
+  <rect x="24" y="100" width="592" height="44" rx="10" fill="#0369A1"/>
+  <text x="40" y="128" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="600" text-anchor="start">Постановления СМ РБ № 216 (2016) и № 448 (03.09.2026)</text>
+  <rect x="48" y="156" width="544" height="44" rx="10" fill="#0EA5E9"/>
+  <text x="64" y="184" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="600" text-anchor="start">ГОСТ ISO 50001-2021 · СТБ 1774 · методика нормирования ТЭР</text>
+  <rect x="72" y="212" width="496" height="44" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="88" y="240" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="600" text-anchor="start">Локальные: энергополитика · EnPI · регламенты СЭнМ · АСКУЭ</text>
+</svg>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" fill="none">
+  <rect width="640" height="180" rx="14" fill="#F8FAFC"/>
+  <g transform="translate(24,36)">
+    <rect width="140" height="108" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <rect x="16" y="16" width="44" height="32" rx="4" fill="#0284C7"/>
+    <rect x="22" y="22" width="32" height="20" rx="2" fill="#E0F2FE"/>
+    <text x="16" y="72" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start">IR / тепловизор</text>
+    <text x="16" y="92" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="start">мостики холода</text>
+  </g>
+  <g transform="translate(176,36)">
+    <rect width="140" height="108" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <circle cx="38" cy="32" r="16" stroke="#0284C7" stroke-width="3"/>
+    <path d="M38 20 v24 M26 32 h24" stroke="#0284C7" stroke-width="2"/>
+    <text x="16" y="72" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start">УЗ-расходомер</text>
+    <text x="16" y="92" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="start">clamp-on, м³/ч</text>
+  </g>
+  <g transform="translate(328,36)">
+    <rect width="140" height="108" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <rect x="18" y="16" width="12" height="36" rx="2" fill="#059669"/>
+    <rect x="34" y="28" width="12" height="24" rx="2" fill="#0284C7"/>
+    <rect x="50" y="22" width="12" height="30" rx="2" fill="#94A3B8"/>
+    <text x="16" y="72" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start">Газоанализ</text>
+    <text x="16" y="92" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="start">O₂ · CO · α</text>
+  </g>
+  <g transform="translate(480,36)">
+    <rect width="136" height="108" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <path d="M18 40 L34 28 L50 44 L66 18" stroke="#0284C7" stroke-width="3" fill="none"/>
+    <text x="16" y="72" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start">PQ-анализатор</text>
+    <text x="16" y="92" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="start">THD · cos φ</text>
+  </g>
+</svg>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 260" fill="none">
+  <rect width="640" height="260" rx="16" fill="#F8FAFC"/>
+  <rect x="196" y="20" width="248" height="52" rx="10" fill="#0284C7"/>
+  <text x="320" y="52" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="15" font-weight="700" text-anchor="middle">Директор / высшее руководство</text>
+  <line x1="320" y1="72" x2="320" y2="96" stroke="#0284C7" stroke-width="2"/>
+  <rect x="170" y="96" width="300" height="48" rx="10" fill="#FFFFFF" stroke="#0284C7"/>
+  <text x="320" y="126" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Главный энергетик / энергоменеджер</text>
+  <line x1="320" y1="144" x2="320" y2="168" stroke="#94A3B8" stroke-width="2"/>
+  <line x1="90" y1="168" x2="550" y2="168" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="24" y="176" width="180" height="64" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="114" y="204" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="middle">Главный технолог</text>
+  <text x="114" y="224" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="middle">удельные нормы</text>
+  <rect x="230" y="176" width="180" height="64" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="320" y="204" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="middle">Главный механик</text>
+  <text x="320" y="224" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="middle">ЧРП · утечки · ремонт</text>
+  <rect x="436" y="176" width="180" height="64" rx="10" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="526" y="204" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="middle">ПЭО / финансы</text>
+  <text x="526" y="224" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="11" font-weight="500" text-anchor="middle">CAPEX · PBP · ROI</text>
+</svg>

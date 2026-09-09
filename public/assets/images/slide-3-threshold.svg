@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" fill="none">
+  <rect width="640" height="220" rx="16" fill="#F8FAFC"/>
+  <text x="24" y="36" fill="#0284C7" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1.8">ПОРОГИ ПОТРЕБЛЕНИЯ ТЭР</text>
+  <rect x="24" y="56" width="180" height="140" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="40" y="88" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">&lt; 300 т у.т.</text>
+  <text x="40" y="118" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="start">Нормы — при</text>
+  <text x="40" y="138" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="start">котле ≥ 0,5 Гкал/ч</text>
+  <text x="40" y="168" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">Аудит добровольный</text>
+  <rect x="220" y="56" width="196" height="140" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="220" y="56" width="6" height="140" fill="#0284C7"/>
+  <text x="242" y="88" fill="#0284C7" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">300 – 1 499 т у.т.</text>
+  <text x="242" y="118" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="start">Нормирование ТЭР</text>
+  <text x="242" y="138" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="700" text-anchor="start">форма 4-энергосбережение</text>
+  <text x="242" y="168" fill="#64748B" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">Аудит — по решению / ТЗ</text>
+  <rect x="432" y="56" width="184" height="140" rx="12" fill="#0284C7"/>
+  <text x="448" y="88" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">≥ 1 500 т у.т.</text>
+  <text x="448" y="118" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="15" font-weight="800" text-anchor="start">Обязательный</text>
+  <text x="448" y="138" fill="#FFFFFF" font-family="Inter, Roboto, sans-serif" font-size="15" font-weight="800" text-anchor="start">энергоаудит</text>
+  <text x="448" y="168" fill="#E0F2FE" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="500" text-anchor="start">не реже 1 раза / 5 лет</text>
+</svg>

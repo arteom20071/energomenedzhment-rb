@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 620" fill="none">
+  <rect width="720" height="620" rx="20" fill="#F8FAFC"/>
+  <rect x="36" y="36" width="648" height="548" rx="16" stroke="#E2E8F0" stroke-dasharray="6 6"/>
+  <text x="56" y="72" fill="#0284C7" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="1.6">КОНТУР УПРАВЛЕНИЯ ТЭР · РБ</text>
+  <rect x="56" y="96" width="608" height="86" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="76" y="132" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="18" font-weight="700" text-anchor="start">Закон № 239-З · Департамент Госстандарта</text>
+  <text x="76" y="158" fill="#475569" font-family="Inter, Roboto, sans-serif" font-size="14" font-weight="500" text-anchor="start">Нормирование · надзор · графики обязательного аудита</text>
+  <rect x="56" y="198" width="292" height="150" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="56" y="198" width="6" height="150" rx="3" fill="#0284C7"/>
+  <text x="80" y="236" fill="#0284C7" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">ЭНЕРГОАУДИТ</text>
+  <text x="80" y="266" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="16" font-weight="700" text-anchor="start">≥ 1 500 т у.т. / год</text>
+  <text x="80" y="292" fill="#475569" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="500" text-anchor="start">Цикл ≤ 5 лет · ТЗ + паспорт</text>
+  <text x="80" y="316" fill="#475569" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="500" text-anchor="start">Баланс · ТЭО · CAPEX/OPEX</text>
+  <rect x="364" y="198" width="300" height="150" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="364" y="198" width="6" height="150" rx="3" fill="#059669"/>
+  <text x="388" y="236" fill="#059669" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">СЭнМ</text>
+  <text x="388" y="266" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="16" font-weight="700" text-anchor="start">ГОСТ ISO 50001-2021</text>
+  <text x="388" y="292" fill="#475569" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="500" text-anchor="start">PDCA · EnB · EnPI</text>
+  <text x="388" y="316" fill="#475569" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="500" text-anchor="start">Внутренний аудит ≥ 1 раз/год</text>
+  <rect x="56" y="364" width="608" height="96" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="76" y="404" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="16" font-weight="700" text-anchor="start">АСКУЭ / АСТУЭ  →  нормы ТЭР  →  форма 4-энергосбережение</text>
+  <text x="76" y="432" fill="#475569" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="500" text-anchor="start">Телеметрия нагрузок · удельные расходы · прогрессивные нормы 1–5 лет</text>
+  <rect x="56" y="476" width="186" height="72" rx="10" fill="#E0F2FE"/>
+  <text x="76" y="508" fill="#0369A1" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">ЦЕЛЬ</text>
+  <text x="76" y="530" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="600" text-anchor="start">Снижение уд. расхода</text>
+  <rect x="258" y="476" width="186" height="72" rx="10" fill="#ECFDF5"/>
+  <text x="278" y="508" fill="#047857" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">КОНТРОЛЬ</text>
+  <text x="278" y="530" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="600" text-anchor="start">Лимиты и EnPI</text>
+  <rect x="460" y="476" width="204" height="72" rx="10" fill="#F1F5F9"/>
+  <text x="480" y="508" fill="#334155" font-family="Inter, Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="start">РЕЗУЛЬТАТ</text>
+  <text x="480" y="530" fill="#0F172A" font-family="Inter, Roboto, sans-serif" font-size="13" font-weight="600" text-anchor="start">Доля ТЭР в себестоимости</text>
+</svg>

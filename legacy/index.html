@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Энергоменеджмент и энергоаудит на предприятии · Республика Беларусь</title>
+  <meta name="description" content="Цели, задачи и организация энергоменеджмента и энергоаудита на предприятии в правовом поле Республики Беларусь. Закон № 239-З, ГОСТ ISO 50001-2021." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.2.1/reveal.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.2.1/theme/white.min.css" />
+  <link rel="stylesheet" href="css/custom.css" />
+  <link rel="icon" href="../assets/images/slide-6-pdca.svg" type="image/svg+xml" />
+</head>
+<body>
+  <div class="edit-bar" id="editBar">
+    <button type="button" id="btnEdit">Правка</button>
+    <button type="button" id="btnAddCard">+ Карточка</button>
+    <button type="button" id="btnAddText">+ Текст</button>
+    <button type="button" id="btnDup">Дубль</button>
+    <button type="button" id="btnDel">Удалить</button>
+    <button type="button" id="btnReset">Сброс</button>
+    <button type="button" id="btnDl">Скачать</button>
+    <button type="button" id="btnFs">На весь экран</button>
+    <span class="hint">E — правка · стрелки или точки — слайды</span>
+  </div>
+  <button type="button" class="exit-fs" id="btnExitFs">Панель</button>
+  <nav class="slide-dots" id="slideDots" aria-label="Слайды"></nav>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- Слайд 1. Титульный -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <div class="title-layout">
+          <div>
+            <p class="kicker fragment fade-up">Аналитический доклад · производственный сектор</p>
+            <h1 class="fragment fade-up">Цели, задачи и организация энергоменеджмента и энергоаудита на предприятии</h1>
+            <p class="subhead fragment fade-up">Практическая реализация в правовом и экономическом поле Республики Беларусь</p>
+            <div class="meta-row">
+              <span class="chip fragment fade-up"><strong>СТБ / ГОСТ ISO 50001</strong></span>
+              <span class="chip fragment fade-up">Закон РБ 08.01.2015 № 239-З</span>
+              <span class="chip fragment fade-up">Департамент по энергоэффективности Госстандарта</span>
+            </div>
+          </div>
+          <aside class="title-aside">
+            <figure class="media-slot">
+              <img src="../assets/images/slide-1-schema.svg" alt="Контур управления ТЭР: закон, энергоаудит, СЭнМ, АСКУЭ" />
+            </figure>
+          </aside>
+        </div>
+        <div class="foot">
+          <span>Республика Беларусь · производственный сектор</span>
+          <span>239-З · Госстандарт · ISO 50001</span>
+        </div>
+      </section>
+
+      <!-- Слайд 2. Нормативно-правовой базис -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Нормативная база</p>
+            <h2>Нормативно-правовой базис энергоэффективности в РБ</h2>
+          </div>
+          <p class="norm-ref">Закон № 239-З<br />пост. СМ РБ № 216 / № 448</p>
+        </header>
+        <div class="grid-2">
+          <div class="legal-stack">
+            <article class="legal-item fragment fade-up">
+              <div class="lvl">Закон</div>
+              <p>Закон Республики Беларусь от 08.01.2015 № 239-З «Об энергосбережении» (изм. № 111-З от 24.05.2021, № 128-З от 31.12.2025).
+                <span>Ст. 10–14 — энергоаудит; ст. 16–18 — нормирование ТЭР; ст. 19 — планы энергосбережения.</span>
+              </p>
+            </article>
+            <article class="legal-item fragment fade-up">
+              <div class="lvl">Регулятор</div>
+              <p>Департамент по энергоэффективности Государственного комитета по стандартизации РБ.
+                <span>Политика, графики обследований, согласование ТЗ, надзор за нормами расхода ТЭР, energoeffect.gov.by.</span>
+              </p>
+            </article>
+            <article class="legal-item fragment fade-up">
+              <div class="lvl">ТНПА</div>
+              <p>ГОСТ ISO 50001-2021 (с 01.06.2021, взамен СТБ ISO 50001-2013). Положение об энергоаудите — пост. СМ РБ от 18.03.2016 № 216 (изм. № 448 от 03.09.2026). СТБ 1774 — энергетический паспорт.
+                <span>Примерная форма паспорта объекта обследования утверждается Советом Министров.</span>
+              </p>
+            </article>
+            <article class="legal-item fragment fade-up">
+              <div class="lvl">Отчёт</div>
+              <p>Форма 4-энергосбережение (Госстандарт): выполнение мероприятий по экономии ТЭР и росту местных ТЭР.
+                <span>Нормирование удельных расходов — с 300 т у.т./год и/или при теплоисточнике ≥ 0,5 Гкал/ч (ст. 17).</span>
+              </p>
+            </article>
+          </div>
+          <div>
+            <figure class="media-slot" style="min-height: 280px;">
+              <img src="../assets/images/slide-2-legal.svg" alt="Иерархия ТНПА: закон, постановления СМ, ГОСТ ISO 50001, локальные регламенты" />
+            </figure>
+            <div class="card accent fragment fade-up" style="margin-top:14px;">
+              <h3>Обязательства субъекта хозяйствования</h3>
+              <ul>
+                <li>Разработка и защита удельных норм расхода ТЭР.</li>
+                <li>План мероприятий по энергосбережению: гос. организации от 300 т у.т.; иные юрлица — от 1 500 т у.т. (ст. 19).</li>
+                <li>Ежегодная статистическая отчётность по форме 4-энергосбережение.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="foot"><span>Нормативно-правовой базис</span><span>Слайд 2 / 9</span></div>
+      </section>
+
+      <!-- Слайд 3. Критерии обязательности -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Обязательный энергоаудит</p>
+            <h2>Критерии обязательности и периодичность</h2>
+          </div>
+          <p class="norm-ref">ст. 11 Закона № 239-З<br />пост. СМ РБ № 448</p>
+        </header>
+        <div class="kpi-row">
+          <article class="kpi fragment fade-up">
+            <p class="lbl">Порог обязательности</p>
+            <p class="val">1 500</p>
+            <p class="hint">т у.т. суммарного годового потребления ТЭР и выше — юрлицо в графике обязательного обследования</p>
+          </article>
+          <article class="kpi fragment fade-up">
+            <p class="lbl">Цикл обследования</p>
+            <p class="val">5 лет</p>
+            <p class="hint">не реже одного раза; графики РОГУ, облисполкомов и Мингорисполкома согласовывает Департамент</p>
+          </article>
+          <article class="kpi fragment fade-up">
+            <p class="lbl">Штат аудитора</p>
+            <p class="val">≥ 3</p>
+            <p class="hint">аттестованных экспертов-энергоаудиторов и поверенная приборная база</p>
+          </article>
+          <article class="kpi fragment fade-up">
+            <p class="lbl">СЭнМ-преференция</p>
+            <p class="val em">3 г.</p>
+            <p class="hint">ГОСТ ISO 50001-2021: облегчённый отчёт — анализ эффективности ТЭР за 3 года</p>
+          </article>
+        </div>
+        <div class="grid-2 eq">
+          <div>
+            <figure class="media-slot compact" style="height: 210px; min-height: 210px;">
+              <img src="../assets/images/slide-3-threshold.svg" alt="Пороги потребления ТЭР: 300, 1500 т у.т." />
+            </figure>
+          </div>
+          <div class="card emerald fragment fade-up">
+            <h3>Процедурные условия (ст. 11–13)</h3>
+            <ul>
+              <li>Основание — техническое задание, согласованное с территориальным органом Департамента.</li>
+              <li>После модернизации основного технологического оборудования (≤ 3 лет) — экспресс-энергоаудит.</li>
+              <li>Ниже 1 500 т у.т. — добровольно, в том числе в формате экспресс-обследования.</li>
+              <li>Сертификат ГОСТ ISO 50001-2021: отчёт из трёх блоков — эффективность за 3 года, факт мероприятий, план экономии.</li>
+              <li>Оплата услуги — за счёт обследуемого лица. Результат — паспорт, мероприятия, предложения по прогрессивным нормам.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="foot"><span>Критерии обязательности</span><span>Слайд 3 / 9</span></div>
+      </section>
+
+      <!-- Слайд 4. Алгоритм аудита -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Методика обследования</p>
+            <h2>Задачи и поэтапный алгоритм энергоаудита</h2>
+          </div>
+          <p class="norm-ref">ст. 10 Закона № 239-З<br />потенциал · паспорт · нормы</p>
+        </header>
+        <figure class="media-slot compact fragment fade-up" style="height: 148px; min-height: 148px; margin-bottom: 18px;">
+          <img src="../assets/images/slide-4-process.svg" alt="Четыре этапа энергоаудита" />
+        </figure>
+        <div class="grid-4">
+          <article class="card accent fragment fade-up">
+            <div class="idx">1</div>
+            <h3>Документарный анализ</h3>
+            <p>Динамика потребления ТЭР (не менее 36 мес.), договоры энергоснабжения, тарифы, структура топливно-энергетического баланса, режимы, ремонты, данные АСКУЭ.</p>
+          </article>
+          <article class="card accent fragment fade-up">
+            <div class="idx">2</div>
+            <h3>Инструментальное обследование</h3>
+            <p>Замеры фактических нагрузок, расход теплоносителей, качество электроэнергии, выявление необоснованных потерь, утечек, сверхнормативных холостых ходов.</p>
+          </article>
+          <article class="card accent fragment fade-up">
+            <div class="idx">3</div>
+            <h3>Энергетический баланс</h3>
+            <p>Фактический баланс vs нормативный. Сведение прихода/расхода по видам ТЭР, выделение ВЭР, коммерческих и технологических потерь, неучтенного расхода.</p>
+          </article>
+          <article class="card emerald fragment fade-up">
+            <div class="idx em">4</div>
+            <h3>ТЭО мероприятий</h3>
+            <p>Пакет мер с CAPEX/OPEX, сроком окупаемости PBP, NPV при необходимости. Включение в план энергосбережения; предложения по прогрессивным нормам (ст. 14).</p>
+          </article>
+        </div>
+        <p class="note fragment fade-up">Выходные документы: отчёт об энергетическом обследовании, энергетический паспорт объекта, перечень энергосберегающих мероприятий, обоснование перехода на прогрессивные нормы расхода ТЭР (≥ 1 500 т у.т.).</p>
+        <div class="foot"><span>Алгоритм энергоаудита</span><span>Слайд 4 / 9</span></div>
+      </section>
+
+      <!-- Слайд 5. Инструментальный парк -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Средства измерений</p>
+            <h2>Инструментальный парк и контрольные замеры</h2>
+          </div>
+          <p class="norm-ref">поверенный парк СИ<br />не менее 3 экспертов</p>
+        </header>
+        <div class="grid-2 eq" style="margin-bottom: 16px;">
+          <figure class="media-slot compact" style="height: 168px; min-height: 168px; margin: 0;">
+            <img src="../assets/images/slide-5-instruments.svg" alt="Тепловизор, УЗ-расходомер, газоанализатор, PQ-анализатор" />
+          </figure>
+          <div class="card fragment fade-up">
+            <h3>Требование к аудиторской организации</h3>
+            <p>Штат ≥ 3 профильных аттестованных экспертов; средства измерений в сфере законодательной метрологии — с действующей поверкой. Протоколы замеров входят в отчёт и паспорт.</p>
+          </div>
+        </div>
+        <div class="grid-4">
+          <article class="card fragment fade-up">
+            <div class="idx">IR</div>
+            <h3>Тепловизионная съёмка</h3>
+            <p>Ограждающие конструкции, теплотрассы, футеровка печей. Детекция мостиков холода, дефектов изоляции, присосов, перегрева контактных соединений.</p>
+          </article>
+          <article class="card fragment fade-up">
+            <div class="idx">US</div>
+            <h3>Ультразвуковая расходометрия</h3>
+            <p>Безнарезной (clamp-on) учёт расхода жидкостей в тепловых и технологических сетях. Сверка коммерческого и технического учёта, поиск неучтённого расхода.</p>
+          </article>
+          <article class="card fragment fade-up">
+            <div class="idx">GA</div>
+            <h3>Газоанализ котлоагрегатов</h3>
+            <p>Состав уходящих дымовых газов: O₂, CO, CO₂, температура. Оптимизация коэффициента избытка воздуха α, снижение q₂ и химического недожога.</p>
+          </article>
+          <article class="card fragment fade-up">
+            <div class="idx">PQ</div>
+            <h3>Электроизмерительные комплексы</h3>
+            <p>Качество электроэнергии (ГОСТ 32144), реактивная мощность, cos φ, THD, несимметрия. База для ЧРП, компенсации Q и исключения штрафных составляющих.</p>
+          </article>
+        </div>
+        <div class="foot"><span>Инструментальный парк</span><span>Слайд 5 / 9</span></div>
+      </section>
+
+      <!-- Слайд 6. СЭнМ ISO 50001 -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Система энергетического менеджмента</p>
+            <h2>СЭнМ по ГОСТ ISO 50001-2021 (взамен СТБ ISO 50001)</h2>
+          </div>
+          <p class="norm-ref">PDCA · EnB · EnPI<br />внутренний аудит ≥ 1 / год</p>
+        </header>
+        <div class="grid-2">
+          <figure class="media-slot" style="min-height: 430px;">
+            <img src="../assets/images/slide-6-pdca.svg" alt="Цикл PDCA системы энергетического менеджмента" />
+          </figure>
+          <div class="pdca" style="grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;">
+            <article class="card accent fragment fade-up">
+              <h3><span>Plan</span>Планирование</h3>
+              <p>Энергополитика высшего руководства. Энергетический анализ. Значимое энергоиспользование (SEU). Базовые линии EnB. Показатели результативности EnPI. Цели, задачи, планы действий.</p>
+            </article>
+            <article class="card accent fragment fade-up">
+              <h3><span>Do</span>Внедрение</h3>
+              <p>Регламенты эксплуатации и обслуживания энергоёмкого оборудования. Компетентность и обучение персонала. Операционное управление SEU. Закупки с учётом энергоэффективности.</p>
+            </article>
+            <article class="card accent fragment fade-up">
+              <h3><span>Check</span>Контроль</h3>
+              <p>Мониторинг EnPI против EnB. Внутренний аудит СЭнМ — минимум 1 раз в год. Инструментальный мониторинг, анализ отклонений, несоответствия.</p>
+            </article>
+            <article class="card emerald fragment fade-up">
+              <h3><span>Act</span>Анализ руководством</h3>
+              <p>Корректирующие действия. Пересмотр целей и EnPI. В РБ сертификат даёт облегчённый формат обязательного энергоаудита (анализ за 3 года + приоритеты экономии).</p>
+            </article>
+          </div>
+        </div>
+        <div class="foot"><span>СЭнМ ISO 50001</span><span>Слайд 6 / 9</span></div>
+      </section>
+
+      <!-- Слайд 7. Нормирование и мероприятия -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Нормы ТЭР и портфель мер</p>
+            <h2>Нормирование ТЭР и классификация мероприятий</h2>
+          </div>
+          <p class="norm-ref">ст. 16–18 Закона № 239-З<br />Е-Паслуга · пост. № 448</p>
+        </header>
+        <div class="grid-2" style="margin-bottom: 16px;">
+          <div class="card accent fragment fade-up">
+            <h3>Расчёт и защита удельных норм</h3>
+            <ul>
+              <li>Текущие нормы — на период до 1 года.</li>
+              <li>Прогрессивные нормы — ряд на 1–5 лет для потребителей ≥ 1 500 т у.т., в том числе по результатам энергоаудита.</li>
+              <li>С 2026 г.: Департамент устанавливает нормы для ≥ 50 тыс. т у.т. и для &lt; 300 т у.т. с теплоисточником ≥ 0,5 Гкал/ч (единые нормы — публикация до 1 ноября). Диапазон 300–50 000 т у.т. — областные и Минское городское управления по надзору.</li>
+              <li>Подача — в электронном виде через портал «Е-Паслуга».</li>
+            </ul>
+          </div>
+          <div>
+            <figure class="media-slot compact" style="height: 200px; min-height: 200px; margin: 0;">
+              <img src="../assets/images/slide-7-measures.svg" alt="Градация мер по сроку окупаемости" />
+            </figure>
+          </div>
+        </div>
+        <div class="grid-3">
+          <article class="card fragment fade-up">
+            <div class="measure">
+              <div class="payback">≤ 1 г.</div>
+              <div>
+                <h3>Беззатратные / низкозатратные</h3>
+                <p>Уплотнение контуров, оптимизация графиков пуска, исключение утечек сжатого воздуха, отключение холостого хода, гидравлическая наладка, режимная наладка котлов (α).</p>
+              </div>
+            </div>
+          </article>
+          <article class="card fragment fade-up">
+            <div class="measure">
+              <div class="payback">1–3 г.</div>
+              <div>
+                <h3>Среднезатратные</h3>
+                <p>ЧРП на насосах и тягодутьевых механизмах, автоматизация ИТП, компенсация реактивной мощности, замена освещения и теплоизоляции трубопроводов.</p>
+              </div>
+            </div>
+          </article>
+          <article class="card fragment fade-up">
+            <div class="measure">
+              <div class="payback">3–5 л.</div>
+              <div>
+                <h3>CAPEX / ВЭР</h3>
+                <p>Когенерация, утилизация вторичных энергоресурсов, рекуперация тепла уходящих газов и стоков, модернизация теплогенерирующих установок.</p>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="foot"><span>Нормирование и мероприятия</span><span>Слайд 7 / 9</span></div>
+      </section>
+
+      <!-- Слайд 8. Организационная структура -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Институт ответственности</p>
+            <h2>Организационная структура энергослужбы предприятия</h2>
+          </div>
+          <p class="norm-ref">СЭнМ · АСКУЭ · АСТУЭ<br />кросс-функциональный контур</p>
+        </header>
+        <div class="grid-2">
+          <div>
+            <figure class="media-slot" style="min-height: 280px;">
+              <img src="../assets/images/slide-8-org.svg" alt="Организационная структура энергослужбы" />
+            </figure>
+          </div>
+          <div class="org" style="grid-template-columns: 1fr;">
+            <article class="card accent fragment fade-up">
+              <h3>Главный энергетик / энергоменеджер</h3>
+              <p>Оперативное управление энергохозяйством, контроль лимитов и удельных норм, координация СЭнМ, взаимодействие с Департаментом, ведение EnPI/EnB, подготовка 4-энергосбережение.</p>
+            </article>
+            <article class="card fragment fade-up">
+              <h3>Энергетическая комиссия</h3>
+              <p>Кросс-функциональная группа: главный технолог (нормы на единицу продукции), главный механик (состояние оборудования), финансово-экономический блок (CAPEX, PBP, включение в инвестпрограмму). Утверждение приоритетов SEU.</p>
+            </article>
+            <article class="card emerald fragment fade-up">
+              <h3>Автоматизация учёта</h3>
+              <p>АСКУЭ — автоматизированная система контроля и учёта электроэнергии. АСТУЭ — автоматизированная система технического учёта энергоресурсов (тепло, пар, газ, сжатый воздух). Телеметрия в реальном времени как источник EnPI и доказательная база аудита.</p>
+            </article>
+          </div>
+        </div>
+        <div class="foot"><span>Энергослужба предприятия</span><span>Слайд 8 / 9</span></div>
+      </section>
+
+      <!-- Слайд 9. KPI и дорожная карта -->
+      <section data-transition="fade" data-background-color="#ffffff">
+        <header class="slide-head">
+          <div>
+            <p class="kicker">Результативность · 12 месяцев</p>
+            <h2>Итоговые показатели эффективности и дорожная карта</h2>
+          </div>
+          <p class="norm-ref">уд. расход ТЭР · ROI<br />аудит → СЭнМ → учёт</p>
+        </header>
+        <div class="grid-3" style="margin-bottom: 16px;">
+          <article class="kpi fragment fade-up">
+            <p class="lbl">Ключевые KPI</p>
+            <p class="val">Δq</p>
+            <p class="hint">Снижение удельного расхода ТЭР на единицу продукции, %/год. Соблюдение установленных текущих и прогрессивных норм. Доля ВЭР и местных ТЭР.</p>
+          </article>
+          <article class="kpi fragment fade-up">
+            <p class="lbl">Финансовый результат</p>
+            <p class="val em">ROI</p>
+            <p class="hint">Снижение доли энергозатрат в себестоимости. PBP портфеля мер. NPV CAPEX-проектов 3–5 лет. Исключение сверхнормативного потребления.</p>
+          </article>
+          <article class="kpi fragment fade-up">
+            <p class="lbl">Институциональный эффект</p>
+            <p class="val">ISO</p>
+            <p class="hint">Сертификация ГОСТ ISO 50001-2021 → облегчённый энергоаудит. Готовность паспорта и плана мероприятий к включению в госпрограммы.</p>
+          </article>
+        </div>
+        <figure class="media-slot compact fragment fade-up" style="height: 132px; min-height: 132px; margin-bottom: 14px;">
+          <img src="../assets/images/slide-9-roadmap.svg" alt="Дорожная карта на 12 месяцев" />
+        </figure>
+        <div class="road">
+          <article class="card accent fragment fade-up">
+            <p class="mo">Месяцы 1–3</p>
+            <h3>Энергоаудит</h3>
+            <p>ТЗ, согласование с территориальным органом, документарный и инструментальный этапы, баланс, паспорт.</p>
+          </article>
+          <article class="card accent fragment fade-up">
+            <p class="mo">Месяцы 4–7</p>
+            <h3>Внедрение рекомендаций</h3>
+            <p>Quick wins (PBP ≤ 1 года), запуск ЧРП/ИТП, фиксация экономии в форме 4-энергосбережение.</p>
+          </article>
+          <article class="card accent fragment fade-up">
+            <p class="mo">Месяцы 8–10</p>
+            <h3>Сертификация СЭнМ</h3>
+            <p>Энергополитика, EnB/EnPI, внутренний аудит, анализ руководством, орган по сертификации ГОСТ ISO 50001.</p>
+          </article>
+          <article class="card emerald fragment fade-up">
+            <p class="mo">Месяцы 11–12</p>
+            <h3>Автоматизация учёта</h3>
+            <p>АСКУЭ/АСТУЭ, дашборд EnPI, постановка мониторинга отклонений от норм расхода ТЭР.</p>
+          </article>
+        </div>
+        <div class="foot"><span>KPI и дорожная карта</span><span>Слайд 9 / 9</span></div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.2.1/reveal.min.js"></script>
+  <script src="js/editor.js"></script>
+  <script>
+    function assignStagger(slide) {
+      if (!slide) return;
+      slide.querySelectorAll(".fragment").forEach((el, i) => {
+        el.style.setProperty("--d", String(i));
+      });
+    }
+
+    Reveal.initialize({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      margin: 0,
+      minScale: 1,
+      maxScale: 1,
+      hash: true,
+      fragmentInURL: false,
+      slideNumber: "c/t",
+      transition: "fade",
+      transitionSpeed: "fast",
+      backgroundTransition: "fade",
+      controls: true,
+      controlsLayout: "edges",
+      controlsBackArrows: "visible",
+      progress: true,
+      center: false,
+      fragments: false,
+      mouseWheel: true,
+      hideInactiveCursor: true,
+      keyboardCondition: (event) => {
+        if (event.target && event.target.isContentEditable) return false;
+        if (event.target && event.target.closest && event.target.closest(".edit-bar")) return false;
+        return true;
+      }
+    });
+
+    Reveal.on("ready", (event) => {
+      sizeDeck();
+      initEditor();
+      Reveal.getSlides().forEach(assignStagger);
+      assignStagger(event.currentSlide);
+      if (window.renderDots) window.renderDots();
+    });
+    Reveal.on("slidechanged", (event) => {
+      document.querySelectorAll(".handles").forEach((h) => h.remove());
+      assignStagger(event.currentSlide);
+      if (window.renderDots) window.renderDots();
+    });
+  </script>
+</body>
+</html>
