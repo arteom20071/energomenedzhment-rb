@@ -1,10 +1,10 @@
 # Local Presentation Editor
 
-This repository is being migrated from a static Reveal.js presentation to a
-local-first presentation editor. The root application is currently a Vite,
-React, and TypeScript scaffold with a placeholder desktop layout. Editing,
-persistence, typed seed slides, import, and export will be implemented in later
-tasks.
+A local-first slide editor for the Belarus energy-management deck. The app
+runs as a static Vite SPA: documents and uploaded photos stay in the browser
+(IndexedDB), with no account or server.
+
+**Live site:** https://arteom20071.github.io/energomenedzhment-rb/
 
 The product design is documented in
 `docs/superpowers/specs/2026-09-08-local-presentation-editor-design.md`.
@@ -35,20 +35,19 @@ npm run build
 ```
 
 `npm run test` starts Vitest in watch mode. Production output is written to
-`dist/`.
+`dist/`. GitHub Pages deploys that output from `main` via
+`.github/workflows/pages.yml` with base path `/energomenedzhment-rb/`.
 
-## Current scaffold
+The editor is built for viewports at least 1024px wide. Drafts are stored on
+the visitor's device, not in the GitHub repository.
 
-- `src/` contains the minimal React application shell and smoke test.
-- `vite.config.ts` configures React, Tailwind CSS, and Vitest.
-- `assets/images/` retains the nine original SVG infographics shared by the
-  legacy deck and future seed migration.
-- `tools/generate_svg.py` rebuilds SVG infographics as UTF-8.
+## Application layout
 
-The intended editor stack includes Tailwind CSS, Lucide React, Zustand with
-zundo, React Moveable, React Selecto, Zod, html-to-image, IndexedDB, Vitest,
-jsdom, and React Testing Library. Their presence in the scaffold does not imply
-that the later editor features are implemented.
+- `src/` contains the editor shell, canvas, media library, persistence, and
+  export.
+- `public/assets/images/` holds the nine SVG infographics used by the seed
+  deck.
+- `legacy/` preserves the previous Reveal.js presentation.
 
 ## Legacy Reveal.js presentation
 
