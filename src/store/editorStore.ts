@@ -16,6 +16,7 @@ import {
   MAX_SLIDES,
   parsePresentation,
   slideElementSchema,
+  slideSchema,
 } from "../domain/presentation";
 import type { Presentation, Slide, SlideElement } from "../domain/presentation";
 
@@ -72,6 +73,11 @@ export interface EditorState {
   toggleSelection: (elementId: string) => void;
   clearSelection: () => void;
   addSlide: () => void;
+  insertSlide: (slide: Slide) => void;
+  updateSlide: (
+    slideId: string,
+    changes: Partial<Pick<Slide, "background" | "transition" | "elements">>,
+  ) => void;
   duplicateSlide: (slideId: string) => void;
   deleteSlide: (slideId: string) => void;
   reorderSlide: (fromIndex: number, toIndex: number) => void;
@@ -263,6 +269,19 @@ function duplicateElementsForSlide(
   });
 }
 
+function remintSlide(slide: Slide, usedIds: Set<string>): Slide {
+  const slideId = usedIds.has(slide.id) ? generateUniqueId(usedIds) : slide.id;
+  usedIds.add(slideId);
+
+  const elements = slide.elements.map((element) => {
+    const elementId = usedIds.has(element.id) ? generateUniqueId(usedIds) : element.id;
+    usedIds.add(elementId);
+    return { ...element, id: elementId };
+  });
+
+  return { ...slide, id: slideId, elements };
+}
+
 function createEditorStateCreator(initial?: EditorInitialState) {
   const initialPresentation = initial?.presentation ?? createPresentation();
 
@@ -355,6 +374,80 @@ function createEditorStateCreator(initial?: EditorInitialState) {
             cropElementId: null,
             saveStatus: "dirty" as const,
           };
+        });
+      },
+      insertSlide: (slide) => {
+        set((state) => {
+          if (state.presentation.slides.length >= MAX_SLIDES) {
+            return state;
+          }
+
+          const usedIds = collectPresentationIds(state.presentation);
+          const nextSlide = remintSlide(slide, usedIds);
+          const parsed = slideSchema.safeParse(nextSlide);
+          if (!parsed.success) {
+            return state;
+          }
+
+          if (parsed.data.elements.length > MAX_ELEMENTS_PER_SLIDE) {
+            return state;
+          }
+
+          return {
+            presentation: {
+              ...state.presentation,
+              slides: [...state.presentation.slides, parsed.data],
+            },
+            activeSlideId: parsed.data.id,
+            selectedElementIds: [],
+            editingTextId: null,
+            cropElementId: null,
+            saveStatus: "dirty" as const,
+          };
+        });
+      },
+      updateSlide: (slideId, changes) => {
+        set((state) => {
+          const current = state.presentation.slides.find((slide) => slide.id === slideId);
+          if (!current) {
+            return state;
+          }
+
+          const nextSlide = {
+            ...current,
+            ...changes,
+            id: current.id,
+          };
+          const parsed = slideSchema.safeParse(nextSlide);
+          if (!parsed.success) {
+            return state;
+          }
+
+          if (parsed.data.elements.length > MAX_ELEMENTS_PER_SLIDE) {
+            return state;
+          }
+
+          const presentation = {
+            ...state.presentation,
+            slides: state.presentation.slides.map((slide) =>
+              slide.id === slideId ? parsed.data : slide,
+            ),
+          };
+
+          const nextState = {
+            ...state,
+            presentation,
+            saveStatus: "dirty" as const,
+          };
+
+          if (state.activeSlideId === slideId) {
+            return {
+              ...nextState,
+              selectedElementIds: normalizeSelection(nextState, state.selectedElementIds),
+            };
+          }
+
+          return nextState;
         });
       },
       duplicateSlide: (slideId) => {

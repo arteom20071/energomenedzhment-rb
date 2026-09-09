@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   createPresentation,
+  createSlide,
   createTextElement,
   resetIdGenerator,
   setIdGenerator,
@@ -681,5 +682,59 @@ describe("createEditorStore", () => {
     const elements = getActiveElements(store);
     expect(elements.find((el) => el.id === "z-b")!.zIndex).toBe(1);
     expect(elements.find((el) => el.id === "z-a")!.zIndex).toBe(0);
+  });
+
+  it("updateSlide changes background and transition without resetting the active slide", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    store.getState().addSlide();
+    const firstId = store.getState().presentation.slides[0]!.id;
+    store.getState().setActiveSlide(firstId);
+    store.getState().setSelection([getActiveElements(store)[0]!.id]);
+    store.getState().setSaveStatus("saved");
+
+    store.getState().updateSlide(firstId, {
+      background: "#112233",
+      transition: "zoom",
+    });
+
+    const updated = store.getState().presentation.slides[0]!;
+    expect(updated.background).toBe("#112233");
+    expect(updated.transition).toBe("zoom");
+    expect(store.getState().activeSlideId).toBe(firstId);
+    expect(store.getState().selectedElementIds).toHaveLength(1);
+    expect(store.getState().saveStatus).toBe("dirty");
+    expect(store.temporal.getState().pastStates.length).toBeGreaterThan(0);
+  });
+
+  it("updateSlide ignores unknown slides and invalid transitions", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const before = store.getState().presentation;
+    store.getState().updateSlide("missing", { background: "#000000" });
+    expect(store.getState().presentation).toEqual(before);
+
+    store.getState().updateSlide(store.getState().activeSlideId, {
+      transition: "spin" as never,
+    });
+    expect(store.getState().presentation).toEqual(before);
+  });
+
+  it("insertSlide appends a built slide, remints colliding ids, and makes it active", () => {
+    const store = createEditorStore({ presentation: buildPresentation() });
+    const existingId = store.getState().activeSlideId;
+    const colliding = createSlide([
+      createTextElement([], { id: existingId, content: "Template" }),
+    ]);
+    colliding.id = existingId;
+
+    store.getState().insertSlide(colliding);
+
+    const slides = store.getState().presentation.slides;
+    expect(slides).toHaveLength(2);
+    const inserted = slides[1]!;
+    expect(inserted.id).not.toBe(existingId);
+    expect(inserted.elements[0]?.id).not.toBe(existingId);
+    expect(inserted.elements[0]?.content).toBe("Template");
+    expect(store.getState().activeSlideId).toBe(inserted.id);
+    expect(store.getState().saveStatus).toBe("dirty");
   });
 });

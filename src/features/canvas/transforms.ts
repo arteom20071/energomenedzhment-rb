@@ -67,7 +67,13 @@ export interface MoveableRotateEvent extends MoveableTranslateEvent {
   dist?: number;
 }
 
-export interface RawMoveableEvent extends MoveableResizeEvent, MoveableRotateEvent {
+export interface RawMoveableEvent {
+  translate?: number[];
+  width?: number;
+  height?: number;
+  rotate?: number;
+  rotation?: number;
+  dist?: number | number[];
   drag?: { translate?: number[] };
 }
 
@@ -79,7 +85,7 @@ export function normalizeMoveableEvent(event: RawMoveableEvent): NormalizedMovea
   return {
     translate: event.drag?.translate ?? event.translate,
     rotate: event.rotate ?? event.rotation,
-    dist: event.dist,
+    dist: typeof event.dist === "number" ? event.dist : undefined,
     width: event.width,
     height: event.height,
   };

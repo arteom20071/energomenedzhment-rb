@@ -4,6 +4,7 @@ const UI_PREFS_KEY = "presentation-editor:uiPrefs";
 export interface UiPrefs {
   sidebarCollapsed?: boolean;
   inspectorWidth?: number;
+  zoom?: number;
 }
 
 export function getActiveProjectId(): string | null {
